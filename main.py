@@ -256,6 +256,7 @@ if __name__ == "__main__":
                     for x in top10:
                         totalCalls+= float(heatmap1[x])    
                           
+        
                     top10Put = sorted(putHeatMap1,key=putHeatMap1.get, reverse = True)[:10]
                     for x in top10Put:
                         totalPuts += float(putHeatMap1[x])
@@ -267,7 +268,7 @@ if __name__ == "__main__":
                     top10Put = sorted(putHeatMap,key=putHeatMap.get, reverse = True)[:10]
                     for x in top10Put:
                        totalPuts += float(putHeatMap[x])
-                print(heatmap)
+   
                 heatmap = {}
                 heatmap1 = {}
                 putHeatMap = {}

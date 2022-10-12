@@ -249,6 +249,7 @@ if __name__ == "__main__":
         if(symbol.__eq__('PC')):
             totalCalls = 0
             totalPuts = 0 
+            individualPCs = {}
             for ticker in spy500:
                 optionInquiry(ticker, expDate, incVol)
                 if(incVol == True):
@@ -261,18 +262,39 @@ if __name__ == "__main__":
                     for x in top10Put:
                         totalPuts += float(putHeatMap1[x])
                 else:
+                    tempC = 0
+                    tempP = 0
                     top10 = sorted(heatmap,key=heatmap.get, reverse = True)[:10]
                     for x in top10:
+                       tempC += float(heatmap[x])   
                        totalCalls+= float(heatmap[x])    
            
                     top10Put = sorted(putHeatMap,key=putHeatMap.get, reverse = True)[:10]
                     for x in top10Put:
                        totalPuts += float(putHeatMap[x])
-   
+                       tempP += float(putHeatMap[x])  
+                    
+                    individualPCs[ticker] = tempP/tempC
+                
+                    print(ticker + ' | ' + str(individualPCs[ticker]))
+
                 heatmap = {}
                 heatmap1 = {}
                 putHeatMap = {}
                 putHeatMap1 = {}
+            
+           
+            print("========================\n\nTOP 20 PUT IMBALANCE")
+            individualPut = sorted(individualPCs.items(), key=lambda item: item[1], reverse= True)
+            for i in range(0,20):
+                print(individualPut[i])
+                
+            print("\nTOP 20 CALL IMBALANCE")
+            
+            individualCall = sorted(individualPCs.items(), key=lambda item: item[1])
+            for i in range(0,20):
+                print(individualCall[i])
+           
             print("PC is: ", totalPuts/totalCalls)
                 
         else:

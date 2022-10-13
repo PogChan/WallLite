@@ -284,17 +284,25 @@ if __name__ == "__main__":
                 putHeatMap1 = {}
             
            
-            print("========================\n\nTOP 20 PUT IMBALANCE")
+            print("========================\n\nTOP 50 PUT IMBALANCE")
             individualPut = sorted(individualPCs.items(), key=lambda item: item[1], reverse= True)
-            for i in range(0,20):
+            RRGPut = ''
+            for i in range(0,50):
                 print(individualPut[i])
-                
-            print("\nTOP 20 CALL IMBALANCE")
-            
+                RRGPut += individualPut[i][0]
+                if(i<49):
+                    RRGPut+=","
+            print(RRGPut)
+            print("\nTOP 50 CALL IMBALANCE")
+            RRGCall = ''
             individualCall = sorted(individualPCs.items(), key=lambda item: item[1])
-            for i in range(0,20):
+            for i in range(0,50):
+
                 print(individualCall[i])
-           
+                RRGCall += individualCall[i][0]
+                if(i<49):
+                    RRGCall+=","
+            print(RRGCall)
             print("PC is: ", totalPuts/totalCalls)
                 
         else:

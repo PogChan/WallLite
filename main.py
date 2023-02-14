@@ -5,7 +5,7 @@ from pprint import pprint
 from xml.etree.ElementInclude import include
 from xml.etree.ElementTree import SubElement
 from click import option
-import requests
+import time
 import sys
 import re
 import urllib.parse
@@ -14,31 +14,32 @@ from td.client import TDClient
 from datetime import datetime
 from td.option_chain import OptionChain
 
+XLB=["SHW", "PPG", "NUE", "EMN", "IP", "CF", "SEE", "NEM", "AMCR", "LYB", "WRK", "DD", "FCX", "DOW", "CTVA", "MOS", "ALB"]
+XLC=["VZ", "T", "IPG", "EA", "TMUS", "FOXA", "CMCSA", "OMC", "LYV", "ATVI", "TTWO", "DIS", "PARA", "LUMN", "NFLX", "GOOGL", "GOOG", "META", "DISH"]
+XLE=["HAL", "OKE", "KMI", "WMB", "HFC", "DVN", "PXD", "FANG", "BKR", "SLB", "PSX", "HES", "MRO", "MPC", "CVX", "EOG", "FTI", "COP", "OXY", "VLO", "APA", "XOM", "NOV"]
+XLI=["JCI", "UPS", "CAT", "HON", "LUV", "RTX", "GD", "XYL", "MMM", "SWK", "DE", "CMI", "DAL", "FAST", "LMT", "PH", "PCAR", "CSX", "FDX", "CPRT", "EMR", "UNP", "OTIS", "FTV", "BA", "GE"]
+XLK=["PAYX", "ADP", "IBM", "CRM", "FISV", "CTSH", "CSCO", "ADSK", "INTC", "GLW", "MA", "ACN", "ADI", "TXN", "HPQ", "FIS", "SWKS", "AAPL", "MCHP", "PYPL", "QCOM", "ORCL", "MSFT", "FTNT", "MU", "AMD", "AMAT", "NVDA"]
+XLP=["CL", "CPB", "CAG", "KHC", "CLX", "SJM", "MO", "GIS", "K", "KO", "SYY", "KDP", "EL", "PM", "LW", "KMB", "PG", "COST", "MKC", "PEP", "MDLZ", "STZ", "MNST", "HRL", "WMT", "ADM", "WBA", "KR", "TSN"]
+XLRE=["VNO", "PLD", "SPG", "VTR", "AMT", "PEAK", "DLR", "CCI"]
+XLU=["FE", "EXC", "LNT", "NRG", "AWK", "PEG", "D", "AEP", "DUK", "CNP", "NEE", "PPL"]
+XLV=["ISRG", "MDT", "BMY", "DHR", "HOLX", "BAX", "PFE", "BSX", "A", "DXCM", "ABT", "HCA", "JNJ", "CVS", "ABBV", "AMGN", "CNC", "GILD", "MRK", "LLY"]
+XLY=["AAP", "BBY", "KMX", "YUM", "BWA", "TGT", "HAS", "LOW", "ROST", "EXPE", "EBAY", "PHM", "TJX", "VFC", "MCD", "NKE", "HD", "LEN", "HLT", "DLTR","RCL", "APTV", "DRI", "SBUX", "ETSY", "DHI", "GRMN", "MAR", "DG", "DPZ", "AMZN", "TSCO", "LVS", "MGM", "F", "WYNN", "CCL", "GM", "TSLA"]
+ARKK=["COIN", "SQ", "DKNG", "PACB", "PATH", "ROKU", "CRSP", "EXAS", "SHOP", "ZM", "HOOD", "RBLX", "TWLO", "TDOC", "TSLA", "U"]
+spy500= XLB+XLC+XLE+XLI+XLK+XLP+XLRE+XLU+XLV+XLY+ARKK
+
+sectors= ['XLB', 'XLC', 'XLE', 'XLI', 'XLK', 'XLP', 'XLRE', 'XLU', 'XLV', 'XLY', 'ARKK']
 #AUTHOR ALLEN CHEN
 #CREATED FOR EVOLVING FINANCE INSTITUTE
 def optionInquiry(symbol, expDate, incVol, optionsType):
     #NEW SESSION
-    tdClient = TDClient(client_id = CONSUMER_KEY, redirect_uri = REDIRECT_URI, credentials_path = JSON_PATH)
-    tdClient.login()
 
+    time.sleep(1)
+    try:
+        optionQuery = OptionChain(symbol=symbol,strike_count=1000, include_quotes=True, from_date=expDate, to_date=expDate, opt_range= optionsType)
+    except:
+        print("ERROR: ", symbol, " ", expDate, " ", optionsType)
 
-
-    optionQuery = OptionChain(symbol=symbol,strike_count=1000, include_quotes=True, from_date=expDate, to_date=expDate, opt_range= optionsType)
-    # opt_chain = {
-    #     'symbol': symbol,
-    #     'contractType': 'ALL',
-    #     'strikeCount': 1000,
-    #     'includeQuotes': True,
-    #     'optionType': 'ALL',
-    #     'fromDate': expDate,
-    #     'toDate': expDate,
-    #     'range': optionsType,
-    # }
-
-    # optionChain = tdClient.get_options_chain(option_chain=opt_chain)
-    # pprint(optionChain)
     optionChain = tdClient.get_options_chain(optionQuery)
-    # print(optionChain)
     totalOICall = 0
     totalOIPut = 0
 
@@ -46,82 +47,43 @@ def optionInquiry(symbol, expDate, incVol, optionsType):
 
     print('\n' + "STATUS" +': ' +status )
     if(status == "FAILED"):
-        return;
-
-
+        return
 
     priceOfSymbol = optionChain['underlying']['last']
     print("\nLAST: ", priceOfSymbol,"\n")
-    for key,value in optionChain.items():
-        # print(key, ':', value, '\n')
+
+    callMap = optionChain['callExpDateMap']
+    putMap = optionChain['putExpDateMap']
+    callExpValue = next(iter(callMap.values()))
+    putExpValue = next(iter(putMap.values()))
 
 
+    for strike, optionsInfo in callExpValue.items():
+        #for each strike and its options info, we will take the strike and then find the open interest
+        #OPTIONS INFO IS A LIST OF DICTS
+        volume = optionsInfo[0]['totalVolume']
+        last = optionsInfo[0]['last'] * 100
+        openInterest = optionsInfo[0]['openInterest']
+        if((priceOfSymbol) >= optionsInfo[0]['strikePrice'] ):
+            totalOICall += openInterest
 
-        if(key.__eq__('callExpDateMap')):
+        heatmap.update({strike: last*openInterest})
+        heatmap1.update({strike: last*(openInterest + volume)})
+    for strike, optionsInfo in putExpValue.items():
+        #for each strike and its options info, we will take the strike and then find the open interest
+        #OPTIONS INFO IS A LIST OF DICTS
 
-            for optionExpStr, options in value.items():
-                #since optionExpStr is only one then
+        volume = optionsInfo[0]['totalVolume']
+        last = optionsInfo[0]['last'] * 100
+        openInterest = optionsInfo[0]['openInterest']
 
-                for strike, optionsInfo in options.items():
-                    #for each strike and its options info, we will take the strike and then find the open interest
-                    #OPTIONS INFO IS A LIST OF DICTS
-                    for info in optionsInfo:
-                        last = 0
-                        openInterest = 0
-                        volume = 0
-                        # print(info)
-                        for name, numeric in info.items():
-                            if(name.__eq__('totalVolume')):
-                                volume = numeric
+        if((priceOfSymbol) <= optionsInfo[0]['strikePrice'] ):
+            totalOIPut += openInterest
 
-                            if(name.__eq__('last')):
-                                last = numeric * 100
-                                # print(last,'\n')
-                            if(name.__eq__('openInterest')):
-                                openInterest = numeric
+        putHeatMap.update({strike: last*openInterest})
+        putHeatMap1.update({strike: last*(openInterest + volume)})
 
-                                if((priceOfSymbol+2) > info['strikePrice'] ):
-
-                                    totalOICall += openInterest
-                                    # print(openInterest)
-                                # print(openInterest, '\n')
-
-                        # print(strike, ':',last*openInterest, '\n')
-                        heatmap.update({strike: last*openInterest})
-                        heatmap1.update({strike: last*(openInterest + volume)})
-        if(key.__eq__('putExpDateMap')):
-
-            for optionExpStr, options in value.items():
-                #since optionExpStr is only one then
-
-                for strike, optionsInfo in options.items():
-                    #for each strike and its options info, we will take the strike and then find the open interest
-                    #OPTIONS INFO IS A LIST OF DICTS
-                    for info in optionsInfo:
-                        last = 0
-                        openInterest = 0
-                        volume = 0
-                        for name, numeric in info.items():
-                            # print(name)
-                            if(name.__eq__('totalVolume')):
-                                volume = numeric
-                                # print(volume)
-                            if(name.__eq__('last')):
-                                last = numeric * 100
-                                # print(last,'\n')
-                            if(name.__eq__('openInterest')):
-                                openInterest = numeric
-                                if((priceOfSymbol-2) < info['strikePrice'] ):
-                                    totalOIPut += openInterest
-
-                                # print(openInterest, '\n')
-
-                        # print(strike, ':',last*openInterest, '\n')
-                        putHeatMap.update({strike: last*openInterest})
-                        #MAX
-                        putHeatMap1.update({strike: last*(openInterest + volume)})
-
-
+    print('totalOICall: ', totalOICall, 'totalOIPut: ', totalOIPut)
     return (totalOICall, totalOIPut)
 
 
@@ -135,6 +97,8 @@ if __name__ == "__main__":
 
     #FORMAT CHECKING SYS
     if(len(sys.argv) >= 3):
+        tdClient = TDClient(client_id = CONSUMER_KEY, redirect_uri = REDIRECT_URI, credentials_path = JSON_PATH)
+        tdClient.login()
         symbol = sys.argv[1]
         expDate = sys.argv[2]
         incVol = False
@@ -151,125 +115,6 @@ if __name__ == "__main__":
             sys.exit("Invalid Exp Date (yyyy-MM-dd)")
         print('======OPTIONS HEATMAP======\n')
         print('TICKER: '+symbol +' |', 'EXP DATE: ' + expDate)
-        spy500 = ["AAPL", "MSFT",
-            "AMZN",
-            "TSLA",
-            "BRK.B",
-            "UNH",
-            "V",
-            "JNJ",
-            "META",
-            "NVDA",
-            "XOM",
-            "PG",
-            "WMT",
-            "JPM",
-            "MA",
-            "LLY",
-            "HD",
-            "PFE",
-            "CVX",
-            "KO",
-            "ABBV",
-            "BAC",
-            "PEP",
-            "MRK",
-            "COST",
-            "TMO",
-            "AVGO",
-            "DHR",
-            "ORCL",
-            "ABT",
-            "CMCSA",
-            "MCD",
-            "ACN",
-            "VZ",
-            "DIS",
-            "CSCO",
-            "ADBE",
-            "CRM",
-            "QCOM",
-            "TMUS",
-            "NKE",
-            "WFC",
-            "INTC",
-            "UPS",
-            "BMY",
-            "NEE",
-            "PM",
-            "TXN",
-            "LIN",
-            "MS",
-            "AMD",
-            "UNP",
-            "RTX",
-            "AMGN",
-            "T",
-            "CVS",
-            "HON",
-            "MDT",
-            "SPGI",
-            "LOW",
-            "AMT",
-            "COP",
-            "IBM",
-            "SCHW",
-            "INTU",
-            "ELV",
-            "AXP",
-            "GS",
-            "LMT",
-            "C",
-            "DE",
-            "CAT",
-            "NFLX",
-            "PLD",
-            "BLK",
-            "BA",
-            "SBUX",
-            "EL",
-            "ADP",
-            "PYPL",
-            "CI",
-            "MDLZ",
-            "AMAT",
-            "NOW",
-            "ADI",
-            "ZTS",
-            "DUK",
-            "CHTR",
-            "MMM",
-            "MO",
-            "CB",
-            "GE",
-            "SO",
-            "MMC",
-            "ISRG",
-            "SYK",
-            "GILD",
-            "CCI",
-            "VRTX",
-            "CME",
-            "BKNG",
-            "GOOG",
-            "GOOGL",
-            "TJX",
-            "USB",
-            "TGT",
-            "BDX",
-            "NOC",
-            "PNC",
-            "CSX",
-            "FISV",
-            "SHW",
-            "IWM",
-            "MU",
-            "CL",
-            "DIA",
-            "SPY",
-            "QQQ",
-            "MRNA"]
-        # spy500 = ["LMND", "RBLX", "BABA", "GME", "CAT", "NIO", "TTD", "MRNA", "WDAY", "MSTR", "UBER", "HOOD", "PTON", "DASH", "SNOW"]
 
         heatmap = {}
         heatmap1 = {}
@@ -363,30 +208,46 @@ if __name__ == "__main__":
 
 
             print("PC is: ", totalPuts/totalCalls)
-        elif(symbol.__eq__('PCOI')):
-
-
+        elif(symbol.__eq__('PCOI') or symbol in sectors):
             totalCalls = 0
             totalPuts = 0
-
             individualOIPCs = {}
-            for ticker in spy500:
+            tickersToSearch = spy500
+            if(symbol in sectors):
+                if(symbol == sectors[0]):
+                    tickersToSearch = XLB
+                elif(symbol == sectors[1]):
+                    tickersToSearch = XLC
+                elif(symbol == sectors[2]):
+                    tickerToSearch = XLE
+                elif(symbol == sectors[3]):
+                    tickersToSearch = XLI
+                elif(symbol == sectors[4]):
+                    tickersToSearch = XLK
+                elif(symbol == sectors[5]):
+                    tickersToSearch = XLP
+                elif(symbol == sectors[6]):
+                    tickersToSearch = XLRE
+                elif(symbol == sectors[7]):
+                    tickersToSearch = XLU
+                elif(symbol == sectors[8]):
+                    tickersToSearch = XLV
+                elif(symbol == sectors[9]):
+                    tickersToSearch = XLY
+                elif(symbol == sectors[10]):
+                    tickersToSearch = ARKK
+            for ticker in tickersToSearch:
+
                 x= optionInquiry(ticker, expDate, incVol, "ITM")
-                if(x):
-                    (callOI, putOI) = x
-                elif(callOI == 0 or putOI == 0):
-                    print(ticker)
+                if(not x):
+                    print('nothing', x)
                     continue
-                else:
-                    print(ticker)
-                    continue
+                (callOI, putOI) = x
 
-                putHeatMap = dict(filter(lambda elem: elem[1] >= 1000000, putHeatMap.items()))
-                heatmap = dict(filter(lambda elem: elem[1] >= 1000000, heatmap.items()))
-
-                if(len(putHeatMap) == 0 and len(heatmap) == 0):
-                    print(ticker)
-                    continue
+                if(callOI == 0):
+                    callOI = 1
+                elif(putOI == 0):
+                    putOI = 1
 
                 print(callOI, putOI)
                 individualOIPCs[ticker] = putOI/callOI
@@ -446,17 +307,3 @@ if __name__ == "__main__":
                     print('\n----PUT SIDE----\n')
                     for x in top10Put:
                         print('Strike:', x, '---> $', '{:,.2f}'.format(putHeatMap[x]))
-
-
-
-
-
-
-
-
-
-
-        # if(key.__eq__('putExpDateMap')):
-        #     print(value, "--------------------\n")
-
-

@@ -248,8 +248,6 @@ if __name__ == "__main__":
                     callOI = 1
                 elif(putOI == 0):
                     putOI = 1
-
-                print(callOI, putOI)
                 individualOIPCs[ticker] = putOI/callOI
 
                 print(ticker + ' | ' + str(individualOIPCs[ticker]))

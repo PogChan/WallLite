@@ -130,14 +130,16 @@ if __name__ == "__main__":
             for ticker in spy500:
 
                 x = optionInquiry(ticker, expDate, incVol, "ALL")
-                if(x):
-                    (callOI, putOI) = x
-                elif(callOI == 0 or putOI == 0):
-                    print(ticker)
+                if(not x):
+                    print('nothing', x)
                     continue
-                else:
-                    print(ticker)
-                    continue
+                (callOI, putOI) = x
+
+                if(callOI == 0):
+                    callOI = 1
+                elif(putOI == 0):
+                    putOI = 1
+
 
                 putHeatMap = dict(filter(lambda elem: elem[1] >= 1000000, putHeatMap.items()))
                 heatmap = dict(filter(lambda elem: elem[1] >= 1000000, heatmap.items()))
@@ -145,8 +147,7 @@ if __name__ == "__main__":
                     print(ticker)
                     continue
 
-                if(callOI != 0 ):
-                    individualOIPCs[ticker] = putOI/callOI
+                individualOIPCs[ticker] = putOI/callOI
 
 
                 if(incVol == True):

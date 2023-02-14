@@ -42,7 +42,7 @@ def optionInquiry(symbol, expDate, incVol, optionsType):
     optionChain = tdClient.get_options_chain(optionQuery)
     totalOICall = 0
     totalOIPut = 0
-
+    print(symbol)
     status = optionChain["status"]
 
     print('\n' + "STATUS" +': ' +status )

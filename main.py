@@ -245,10 +245,12 @@ if __name__ == "__main__":
                     continue
                 (callOI, putOI) = x
 
-                if(callOI == 0):
-                    callOI = 1
-                elif(putOI == 0):
-                    putOI = 1
+                if(callOI < 1000):
+                    print('CALL OI less than 1000')
+                    continue
+                elif(putOI < 1000):
+                    print('PUT OI less than 1000')
+                    continue
                 individualOIPCs[ticker] = putOI/callOI
 
                 print(ticker + ' | ' + str(individualOIPCs[ticker]))

@@ -9,6 +9,7 @@ import time
 import sys
 import re
 import urllib.parse
+from itertools import tee
 from config import CONSUMER_KEY, REDIRECT_URI, JSON_PATH
 from td.client import TDClient
 from datetime import datetime
@@ -97,8 +98,11 @@ if __name__ == "__main__":
 
     #FORMAT CHECKING SYS
     if(len(sys.argv) >= 3):
+
         tdClient = TDClient(client_id = CONSUMER_KEY, redirect_uri = REDIRECT_URI, credentials_path = JSON_PATH)
         tdClient.login()
+        f= open('result.txt', 'w')
+
         symbol = sys.argv[1]
         expDate = sys.argv[2]
         incVol = False
@@ -260,7 +264,7 @@ if __name__ == "__main__":
                 putHeatMap1 = {}
 
 
-
+            sys.stdout = f
             print("========================\n\nTOP 50 PUT OI IMBALANCE")
             individualPut = sorted(individualOIPCs.items(), key=lambda item: item[1], reverse= True)
             RRGPut = ''
@@ -308,3 +312,5 @@ if __name__ == "__main__":
                     print('\n----PUT SIDE----\n')
                     for x in top10Put:
                         print('Strike:', x, '---> $', '{:,.2f}'.format(putHeatMap[x]))
+    sys.stdout = sys.__stdout__
+    f.close()

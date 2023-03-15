@@ -14,21 +14,8 @@ from config import CONSUMER_KEY, REDIRECT_URI, JSON_PATH
 from td.client import TDClient
 from datetime import datetime
 from td.option_chain import OptionChain
+from tickers import sectors, spy500
 
-XLB=["SHW", "PPG", "NUE", "EMN", "IP", "CF", "SEE", "NEM", "AMCR", "LYB", "WRK", "DD", "FCX", "DOW", "CTVA", "MOS", "ALB"]
-XLC=["VZ", "T", "IPG", "EA", "TMUS", "FOXA", "CMCSA", "OMC", "LYV", "ATVI", "TTWO", "DIS", "PARA", "LUMN", "NFLX", "GOOGL", "GOOG", "META", "DISH"]
-XLE=["HAL", "OKE", "KMI", "WMB", "HFC", "DVN", "PXD", "FANG", "BKR", "SLB", "PSX", "HES", "MRO", "MPC", "CVX", "EOG", "FTI", "COP", "OXY", "VLO", "APA", "XOM", "NOV"]
-XLI=["JCI", "UPS", "CAT", "HON", "LUV", "RTX", "GD", "XYL", "MMM", "SWK", "DE", "CMI", "DAL", "FAST", "LMT", "PH", "PCAR", "CSX", "FDX", "CPRT", "EMR", "UNP", "OTIS", "FTV", "BA", "GE"]
-XLK=["PAYX", "ADP", "IBM", "CRM", "FISV", "CTSH", "CSCO", "ADSK", "INTC", "GLW", "MA", "ACN", "ADI", "TXN", "HPQ", "FIS", "SWKS", "AAPL", "MCHP", "PYPL", "QCOM", "ORCL", "MSFT", "FTNT", "MU", "AMD", "AMAT", "NVDA"]
-XLP=["CL", "CPB", "CAG", "KHC", "CLX", "SJM", "MO", "GIS", "K", "KO", "SYY", "KDP", "EL", "PM", "LW", "KMB", "PG", "COST", "MKC", "PEP", "MDLZ", "STZ", "MNST", "HRL", "WMT", "ADM", "WBA", "KR", "TSN"]
-XLRE=["VNO", "PLD", "SPG", "VTR", "AMT", "PEAK", "DLR", "CCI"]
-XLU=["FE", "EXC", "LNT", "NRG", "AWK", "PEG", "D", "AEP", "DUK", "CNP", "NEE", "PPL"]
-XLV=["ISRG", "MDT", "BMY", "DHR", "HOLX", "BAX", "PFE", "BSX", "A", "DXCM", "ABT", "HCA", "JNJ", "CVS", "ABBV", "AMGN", "CNC", "GILD", "MRK", "LLY"]
-XLY=["AAP", "BBY", "KMX", "YUM", "BWA", "TGT", "HAS", "LOW", "ROST", "EXPE", "EBAY", "PHM", "TJX", "VFC", "MCD", "NKE", "HD", "LEN", "HLT", "DLTR","RCL", "APTV", "DRI", "SBUX", "ETSY", "DHI", "GRMN", "MAR", "DG", "DPZ", "AMZN", "TSCO", "LVS", "MGM", "F", "WYNN", "CCL", "GM", "TSLA"]
-ARKK=["COIN", "SQ", "DKNG", "PACB", "PATH", "ROKU", "CRSP", "EXAS", "SHOP", "ZM", "HOOD", "RBLX", "TWLO", "TDOC", "TSLA", "U"]
-spy500= XLB+XLC+XLE+XLI+XLK+XLP+XLRE+XLU+XLV+XLY+ARKK
-
-sectors= ['XLB', 'XLC', 'XLE', 'XLI', 'XLK', 'XLP', 'XLRE', 'XLU', 'XLV', 'XLY', 'ARKK']
 #AUTHOR ALLEN CHEN
 #CREATED FOR EVOLVING FINANCE INSTITUTE
 def optionInquiry(symbol, expDate, incVol, optionsType):
@@ -36,7 +23,7 @@ def optionInquiry(symbol, expDate, incVol, optionsType):
 
     time.sleep(1)
     try:
-        optionQuery = OptionChain(symbol=symbol,strike_count=1000, include_quotes=True, from_date=expDate, to_date=expDate, opt_range= optionsType)
+        optionQuery = OptionChain(symbol=symbol,strike_count=24, include_quotes=True, from_date=expDate, to_date=expDate, opt_range= optionsType)
     except:
         print("ERROR: ", symbol, " ", expDate, " ", optionsType)
 
@@ -58,7 +45,6 @@ def optionInquiry(symbol, expDate, incVol, optionsType):
     callExpValue = next(iter(callMap.values()))
     putExpValue = next(iter(putMap.values()))
 
-
     for strike, optionsInfo in callExpValue.items():
         #for each strike and its options info, we will take the strike and then find the open interest
         #OPTIONS INFO IS A LIST OF DICTS
@@ -69,7 +55,7 @@ def optionInquiry(symbol, expDate, incVol, optionsType):
             totalOICall += openInterest
 
         heatmap.update({strike: last*openInterest})
-        heatmap1.update({strike: last*(openInterest + volume)})
+        heatmap1.update({strike: openInterest})
     for strike, optionsInfo in putExpValue.items():
         #for each strike and its options info, we will take the strike and then find the open interest
         #OPTIONS INFO IS A LIST OF DICTS
@@ -80,10 +66,12 @@ def optionInquiry(symbol, expDate, incVol, optionsType):
 
         if((priceOfSymbol) <= optionsInfo[0]['strikePrice'] ):
             totalOIPut += openInterest
-
         putHeatMap.update({strike: last*openInterest})
-        putHeatMap1.update({strike: last*(openInterest + volume)})
+        putHeatMap1.update({strike: openInterest})
 
+    # imbalanceList = [(strike, heatmap1[strike] - putHeatMap1[strike]) for strike in heatmap1.keys() & putHeatMap1.keys()]
+    # print(imbalanceList)
+    # print(heatmap1)
     print('totalOICall: ', totalOICall, 'totalOIPut: ', totalOIPut)
     return (totalOICall, totalOIPut)
 
@@ -219,43 +207,30 @@ if __name__ == "__main__":
             individualOIPCs = {}
             tickersToSearch = spy500
             if(symbol in sectors):
-                if(symbol == sectors[0]):
-                    tickersToSearch = XLB
-                elif(symbol == sectors[1]):
-                    tickersToSearch = XLC
-                elif(symbol == sectors[2]):
-                    tickerToSearch = XLE
-                elif(symbol == sectors[3]):
-                    tickersToSearch = XLI
-                elif(symbol == sectors[4]):
-                    tickersToSearch = XLK
-                elif(symbol == sectors[5]):
-                    tickersToSearch = XLP
-                elif(symbol == sectors[6]):
-                    tickersToSearch = XLRE
-                elif(symbol == sectors[7]):
-                    tickersToSearch = XLU
-                elif(symbol == sectors[8]):
-                    tickersToSearch = XLV
-                elif(symbol == sectors[9]):
-                    tickersToSearch = XLY
-                elif(symbol == sectors[10]):
-                    tickersToSearch = ARKK
-            for ticker in tickersToSearch:
+               tickersToSearch = sectors[symbol]
 
-                x= optionInquiry(ticker, expDate, incVol, "ITM")
+            for ticker in tickersToSearch:
+                x= optionInquiry(ticker, expDate, incVol, "ALL")
                 if(not x):
                     print('nothing', x)
                     continue
                 (callOI, putOI) = x
+                if(tickersToSearch == spy500):
+                    if(callOI < 1000):
+                        print('CALL OI less than 1000')
+                        continue
+                    elif(putOI < 1000):
+                        print('PUT OI less than 1000')
+                        continue
+                else:
+                    if(callOI == 0):
+                        print('CALL OI is 0')
+                        callOI = 1
+                    if(putOI == 0):
+                        print('PUT OI is 0')
+                        putOI = 1
 
-                if(callOI < 1000):
-                    print('CALL OI less than 1000')
-                    continue
-                elif(putOI < 1000):
-                    print('PUT OI less than 1000')
-                    continue
-                individualOIPCs[ticker] = putOI/callOI
+                individualOIPCs[ticker] = abs(callOI/(callOI+putOI) - 0.5) * 2
 
                 print(ticker + ' | ' + str(individualOIPCs[ticker]))
                 heatmap = {}
@@ -266,7 +241,7 @@ if __name__ == "__main__":
 
             sys.stdout = f
             print("========================\n\nTOP 50 PUT OI IMBALANCE")
-            individualPut = sorted(individualOIPCs.items(), key=lambda item: item[1], reverse= True)
+            individualPut = sorted(individualOIPCs.items(), key=lambda item: item[1])
             RRGPut = ''
             for i in range(0,len(individualPut)):
                 print(individualPut[i])
@@ -276,7 +251,7 @@ if __name__ == "__main__":
             print(RRGPut)
             print("\nTOP 50 CALL OI IMBALANCE")
             RRGCall = ''
-            individualCall = sorted(individualOIPCs.items(), key=lambda item: item[1])
+            individualCall = sorted(individualOIPCs.items(), key=lambda item: item[1], reverse= True)
             for i in range(0,len(individualCall)):
 
                 print(individualCall[i])

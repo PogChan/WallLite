@@ -22,12 +22,15 @@ def optionInquiry(symbol, expDate, incVol, optionsType):
     #NEW SESSION
 
     time.sleep(1)
+    optionChain = None
     try:
         optionQuery = OptionChain(symbol=symbol,strike_count=24, include_quotes=True, from_date=expDate, to_date=expDate, opt_range= optionsType)
+        optionChain = tdClient.get_options_chain(optionQuery)
     except:
         print("ERROR: ", symbol, " ", expDate, " ", optionsType)
 
-    optionChain = tdClient.get_options_chain(optionQuery)
+    if(optionChain is None):
+        return (0,0)
     totalOICall = 0
     totalOIPut = 0
     print(symbol)
@@ -35,13 +38,19 @@ def optionInquiry(symbol, expDate, incVol, optionsType):
 
     print('\n' + "STATUS" +': ' +status )
     if(status == "FAILED"):
-        return
+        return (0,0)
 
     priceOfSymbol = optionChain['underlying']['last']
     print("\nLAST: ", priceOfSymbol,"\n")
+    if(priceOfSymbol is None):
+        return (0,0)
 
     callMap = optionChain['callExpDateMap']
     putMap = optionChain['putExpDateMap']
+    #if values are empty then we will return 0,0
+    if(len(callMap.values()) == 0 or len(putMap.values()) == 0):
+        return (0,0)
+
     callExpValue = next(iter(callMap.values()))
     putExpValue = next(iter(putMap.values()))
 
@@ -69,9 +78,15 @@ def optionInquiry(symbol, expDate, incVol, optionsType):
         putHeatMap.update({strike: last*openInterest})
         putHeatMap1.update({strike: openInterest})
 
+    #CALLS - PUTS
+    #NEGATIVE = More Puts
+    #POSITIVE = More Calls
+
     # imbalanceList = [(strike, heatmap1[strike] - putHeatMap1[strike]) for strike in heatmap1.keys() & putHeatMap1.keys()]
     # print(imbalanceList)
-    # print(heatmap1)
+
+    totalOICall = sum(heatmap.values())
+    totalOIPut = sum(putHeatMap.values())
     print('totalOICall: ', totalOICall, 'totalOIPut: ', totalOIPut)
     return (totalOICall, totalOIPut)
 
@@ -230,7 +245,7 @@ if __name__ == "__main__":
                         print('PUT OI is 0')
                         putOI = 1
 
-                individualOIPCs[ticker] = abs(callOI/(callOI+putOI) - 0.5) * 2
+                individualOIPCs[ticker] = putOI/(callOI+putOI)
 
                 print(ticker + ' | ' + str(individualOIPCs[ticker]))
                 heatmap = {}
@@ -240,24 +255,29 @@ if __name__ == "__main__":
 
 
             sys.stdout = f
+            print(sys.argv[1], " ", sys.argv[2])
             print("========================\n\nTOP 50 PUT OI IMBALANCE")
-            individualPut = sorted(individualOIPCs.items(), key=lambda item: item[1])
+            individualPut = sorted(individualOIPCs.items(), key=lambda item: item[1], reverse= True)
             RRGPut = ''
             for i in range(0,len(individualPut)):
                 print(individualPut[i])
                 RRGPut += individualPut[i][0]
                 if(i<49):
                     RRGPut+=","
+                else:
+                    break
             print(RRGPut)
             print("\nTOP 50 CALL OI IMBALANCE")
             RRGCall = ''
-            individualCall = sorted(individualOIPCs.items(), key=lambda item: item[1], reverse= True)
+            individualCall = sorted(individualOIPCs.items(), key=lambda item: item[1])
             for i in range(0,len(individualCall)):
 
                 print(individualCall[i])
                 RRGCall += individualCall[i][0]
                 if(i<49):
                     RRGCall+=","
+                else:
+                    break
             print(RRGCall)
         else:
             x = optionInquiry(symbol, expDate, incVol, 'ALL')

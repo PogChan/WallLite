@@ -129,61 +129,56 @@ if __name__ == "__main__":
         putHeatMap1 = {}
 
 
-        if(symbol.__eq__('PC')):
+        if(symbol.__eq__('PC') or symbol in sectors) and incVol == True:
             totalCalls = 0
             totalPuts = 0
             individualPCs = {}
             individualOIPCs = {}
-            for ticker in spy500:
+            tickersToSearch = spy500
+            if(symbol in sectors):
+               tickersToSearch = sectors[symbol]
 
-                x = optionInquiry(ticker, expDate, incVol, "ALL")
+            for ticker in tickersToSearch:
+                x= optionInquiry(ticker, expDate, incVol, "ALL")
                 if(not x):
                     print('nothing', x)
                     continue
                 (callOI, putOI) = x
-
-                if(callOI == 0):
-                    callOI = 1
-                elif(putOI == 0):
-                    putOI = 1
-
-
-                putHeatMap = dict(filter(lambda elem: elem[1] >= 1000000, putHeatMap.items()))
-                heatmap = dict(filter(lambda elem: elem[1] >= 1000000, heatmap.items()))
-                if(len(putHeatMap) == 0 and len(heatmap) == 0):
-                    print(ticker)
-                    continue
-
-                individualOIPCs[ticker] = putOI/callOI
-
-
-                if(incVol == True):
-                    top10 = sorted(heatmap1,key=heatmap1.get, reverse = True)[:10]
-                    for x in top10:
-                        totalCalls+= float(heatmap1[x])
-
-
-                    top10Put = sorted(putHeatMap1,key=putHeatMap1.get, reverse = True)[:10]
-                    for x in top10Put:
-                        totalPuts += float(putHeatMap1[x])
-                else:
-                    tempC = 0
-                    tempP = 0
-                    top10 = sorted(heatmap,key=heatmap.get, reverse = True)[:10]
-                    for x in top10:
-                       tempC += float(heatmap[x])
-                       totalCalls+= float(heatmap[x])
-
-                    top10Put = sorted(putHeatMap,key=putHeatMap.get, reverse = True)[:10]
-                    for x in top10Put:
-                       totalPuts += float(putHeatMap[x])
-                       tempP += float(putHeatMap[x])
-
-                    if(tempC == 0):
+                if(tickersToSearch == spy500):
+                    if(callOI < 1000):
+                        print('CALL OI less than 1000')
                         continue
-                    individualPCs[ticker] = tempP/tempC
+                    elif(putOI < 1000):
+                        print('PUT OI less than 1000')
+                        continue
+                else:
+                    if(callOI == 0):
+                        print('CALL OI is 0')
+                        callOI = 1
+                    if(putOI == 0):
+                        print('PUT OI is 0')
+                        putOI = 1
 
-                    print(ticker + ' | ' + str(individualPCs[ticker]) + ' | ' + str(individualOIPCs[ticker]))
+                individualOIPCs[ticker] = putOI/(callOI+putOI)
+                print(ticker, "OI PC", individualOIPCs[ticker])
+                tempC = 0
+                tempP = 0
+                top10 = sorted(heatmap,key=heatmap.get, reverse = True)[:50]
+                for x in top10:
+                    tempC += float(heatmap[x])
+                    totalCalls+= float(heatmap[x])
+
+                top10Put = sorted(putHeatMap,key=putHeatMap.get, reverse = True)[:50]
+                for x in top10Put:
+                    totalPuts += float(putHeatMap[x])
+                    tempP += float(putHeatMap[x])
+
+                if(tempC == 0):
+                    continue
+                individualPCs[ticker] = tempP/tempC
+
+                print(ticker + ' | PC ' + str(individualPCs[ticker]))
+                print("Puts:", tempP, "|", "Calls:", tempC)
 
 
                 heatmap = {}
@@ -191,7 +186,8 @@ if __name__ == "__main__":
                 putHeatMap = {}
                 putHeatMap1 = {}
 
-
+            sys.stdout = f
+            print(sys.argv[1], " ", sys.argv[2])
             print("========================\n\nTOP 50 PUT IMBALANCE")
             individualPut = sorted(individualPCs.items(), key=lambda item: item[1], reverse= True)
             RRGPut = ''
@@ -262,7 +258,7 @@ if __name__ == "__main__":
             for i in range(0,len(individualPut)):
                 print(individualPut[i])
                 RRGPut += individualPut[i][0]
-                if(i<49):
+                if(i<100):
                     RRGPut+=","
                 else:
                     break
@@ -274,7 +270,7 @@ if __name__ == "__main__":
 
                 print(individualCall[i])
                 RRGCall += individualCall[i][0]
-                if(i<49):
+                if(i<100):
                     RRGCall+=","
                 else:
                     break

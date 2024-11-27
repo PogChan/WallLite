@@ -10,6 +10,8 @@ import pandas as pd
 from tickers import *
 import time
 from dotenv import load_dotenv
+from concurrent.futures import ThreadPoolExecutor
+
 load_dotenv()
 
 apiUrl = st.secrets["API"]
@@ -39,6 +41,9 @@ def get_options_chain(symbol):
     else:
         st.error(f"Failed to fetch options chain for {symbol}. Status code: {response.status_code}")
         return None
+    
+def fetch_ticker_data(symbol):
+    return {symbol: get_options_chain(symbol)}
 
 # find stock price currnet
 def get_stock_price(symbol):
@@ -72,7 +77,7 @@ def analyze_options_chain(data, exp_date, stock_price):
     call_data = data["options"][exp_date]["c"]
     put_data = data["options"][exp_date]["p"]
 
-    def process_options(data, stock_price, max_strikes=20):
+    def process_options(data, stock_price, max_strikes=10):
         """Process options data dynamically around stock price."""
         premiums = {}
         strikes = sorted([float(strike) for strike in data.keys()])
@@ -117,6 +122,7 @@ def analyze_options_chain(data, exp_date, stock_price):
         "call_heatmap": call_heatmap,
         "put_heatmap": put_heatmap,
     }
+
 def main():
     st.title("✨ EFI Imbalance Screener")
 

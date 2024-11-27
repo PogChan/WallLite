@@ -1,31 +1,23 @@
 import streamlit as st
-from datetime import datetime, timedelta
-import calendar
-from tickers import * 
+import yfinance as yf
 import requests
 import random
+from datetime import datetime, timedelta
+import pandas as pd
+from tickers import *
 import time
 
-# Helper function to get next Fridays
-def get_next_fridays(n=10):
-    """Return the next `n` Fridays from today."""
-    today = datetime.today()
-    fridays = []
-    for i in range(n):
-        next_friday = today + timedelta((calendar.FRIDAY - today.weekday()) % 7 + 7 * i)
-        fridays.append(next_friday.strftime('%Y-%m-%d'))
-    return fridays
-
-# API request session and user-agents
-session = requests.Session()
+# User agent pool
 user_agents = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Safari/605.1.15',
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64)",
 ]
 
+# Cached function to fetch options chain
 @st.cache_data(ttl=43200)
 def get_options_chain(symbol):
-    """Fetch options chain from API."""
+    time.sleep(1)
     url = f"https://www.optionsprofitcalculator.com/ajax/getOptions?stock={symbol.upper()}&reqId={random.randint(1, 1000000)}"
     headers = {
         'User-Agent': random.choice(user_agents),
@@ -33,8 +25,7 @@ def get_options_chain(symbol):
         'Referer': 'https://www.optionsprofitcalculator.com/',
         'Accept': 'application/json',
     }
-    time.sleep(1)  # To avoid being rate-limited
-    response = session.get(url, headers=headers)
+    response = requests.get(url, headers=headers)
 
     if response.status_code == 200:
         return response.json()
@@ -42,102 +33,182 @@ def get_options_chain(symbol):
         st.error(f"Failed to fetch options chain for {symbol}. Status code: {response.status_code}")
         return None
 
+# Fetch stock price from Yahoo Finance
+def get_stock_price(symbol):
+    ticker = yf.Ticker(symbol)
+    try:
+        price = ticker.history(period="1d")['Close'].iloc[-1]
+        return price
+    except Exception as e:
+        st.error(f"Failed to fetch stock price for {symbol}: {e}")
+        return None
 
-def analyze_tickers(tickers, exp_date):
-    """Analyze tickers for heatmap and PC flow."""
-    results = []
-    for symbol in tickers:
-        st.write(f"Fetching data for {symbol}...")
-        option_chain = get_options_chain(symbol)
-        if not option_chain or 'options' not in option_chain:
-            st.write(f"No data available for {symbol}")
-            continue
+def get_next_fridays(n=10):
+    """Get the next `num_fridays` Fridays starting from today."""
+    today = datetime.now()
+    fridays = []
+    # Find the next Friday
+    days_until_next_friday = (4 - today.weekday() + 7) % 7
+    next_friday = today + timedelta(days=days_until_next_friday)
+    
+    for i in range(n):
+        fridays.append(next_friday + timedelta(weeks=i))
+    
+    return [friday.strftime('%Y-%m-%d') for friday in fridays]
 
-        stock_price = float(option_chain.get('stock_price', 0))
-        call_data = option_chain['options']['call']
-        put_data = option_chain['options']['put']
 
-        call_heatmap = {}
-        put_heatmap = {}
-        total_call_oi = 0
-        total_put_oi = 0
+def analyze_options_chain(data, exp_date, stock_price):
+    """Analyze call and put premiums with dynamic increments."""
+    if exp_date not in data.get("options", {}):
+        return {"call_premium": 0, "put_premium": 0, "call_heatmap": {}, "put_heatmap": {}}
 
-        # Process calls
-        for strike, data in call_data.items():
-            strike_price = float(strike)
-            open_interest = int(data.get('oi', 0))
-            mid_price = float(data.get('last', 0))
-            if stock_price >= strike_price:
-                total_call_oi += open_interest
-            call_heatmap[strike_price] = mid_price * open_interest
+    call_data = data["options"][exp_date]["c"]
+    put_data = data["options"][exp_date]["p"]
 
-        # Process puts
-        for strike, data in put_data.items():
-            strike_price = float(strike)
-            open_interest = int(data.get('oi', 0))
-            mid_price = float(data.get('last', 0))
-            if stock_price <= strike_price:
-                total_put_oi += open_interest
-            put_heatmap[strike_price] = mid_price * open_interest
+    def process_options(data, stock_price, max_strikes=15):
+        """Process options data dynamically around stock price."""
+        premiums = {}
+        strikes = sorted([float(strike) for strike in data.keys()])
 
-        total_call_value = sum(call_heatmap.values())
-        total_put_value = sum(put_heatmap.values())
-        put_call_ratio = total_put_value / total_call_value if total_call_value > 0 else float('inf')
+        # Determine strike increment
+        increments = [round(strikes[i + 1] - strikes[i], 2) for i in range(len(strikes) - 1)]
+        increment = max(set(increments), key=increments.count) if increments else 1
 
-        # Store results
-        results.append({
-            "symbol": symbol,
-            "total_call_oi": total_call_oi,
-            "total_put_oi": total_put_oi,
-            "total_call_value": total_call_value,
-            "total_put_value": total_put_value,
-            "put_call_ratio": put_call_ratio,
-        })
+        # Get valid strikes within range
+        valid_strikes = [
+            strike for strike in strikes
+            if stock_price - (increment * max_strikes / 2) <= strike <= stock_price + (increment * max_strikes / 2)
+        ]
 
-    return results
+        # Process premiums for valid strikes
+        for strike in valid_strikes:
+            # Use the original string representation for lookup
+            strike_key = f"{strike:.2f}"
+            info = data.get(strike_key, {})
+   
+            # Check if 'b' and 'a' keys exist and are valid
+            if 'b' in info and 'a' in info and 'oi' in info:
+                mid_price = (info.get("b", 0) + info.get("a", 0)) / 2
+                total_premium = round(mid_price * info.get("oi", 0)) * 100  # Round premium to whole number
+                premiums[float(strike_key)] = total_premium
+            else:
+                st.write(f"Invalid data for strike {strike_key}: {info}")
 
-# Streamlit App
+        return premiums
+
+    # Process call and put data
+    call_heatmap = process_options(call_data, stock_price)
+    put_heatmap = process_options(put_data, stock_price)
+
+    # Calculate totals
+    call_premium = sum(call_heatmap.values())
+    put_premium = sum(put_heatmap.values())
+
+    return {
+        "call_premium": round(call_premium),
+        "put_premium": round(put_premium),
+        "call_heatmap": call_heatmap,
+        "put_heatmap": put_heatmap,
+    }
 def main():
-    st.title("Options Scanner Interface")
+    st.title("✨ Options Scanner Interface")
     st.markdown(
         """
-        **Select a sector**, customize tickers, and choose an expiration date to run the options analysis.
+        **Welcome to the Options Scanner!**  
+        Select a sector, customize tickers, and choose an expiration date to analyze options data with a beautiful interface.  
         """
     )
-    
+
     # Dropdown for sectors
     sector_keys = list(sectors.keys())
-    selected_sector = st.selectbox("Select a Sector:", sector_keys)
-    
+    selected_sector = st.selectbox("📊 Select a Sector:", sector_keys)
+
     # Text box for tickers
     default_tickers = ", ".join(sectors[selected_sector])
     tickers_input = st.text_area(
-        "Tickers (comma-separated):",
+        "📝 Tickers (comma-separated):",
         value=default_tickers,
         help="You can customize the tickers here. Separate each ticker with a comma."
     )
-    
+
     # Parse the tickers
     tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
-    
- 
-    
+
     # Dropdown for expiration dates
     expiration_dates = get_next_fridays()
-    selected_expiration = st.selectbox("Select an Options Expiration Date:", expiration_dates)
-    
+    selected_expiration = st.selectbox("📅 Select an Options Expiration Date:", expiration_dates)
+
     # Button to run analysis
-    if st.button("Run Analysis"):
-        # Placeholder for options analysis logic
-        st.markdown("### Running Options Analysis...")
-        st.write(f"Selected Sector: {selected_sector}")
-        st.write(f"Selected Tickers: {tickers}")
-        st.write(f"Selected Expiration Date: {selected_expiration}")
-        
-        # Simulate analysis (replace this with actual logic)
-        st.markdown("Analysis complete! Displaying results...")
-        st.write(f"Results for tickers: {', '.join(tickers)} on expiration: {selected_expiration}")
-        # Add your analysis logic here, e.g., calling an API or running calculations.
+    if st.button("🚀 Run Analysis"):
+        st.markdown("### 📈 Analyzing Options Data...")
+        results = []
+
+        for symbol in tickers:
+            with st.spinner(f"🔍 Analyzing {symbol}..."):
+                # Fetch stock price
+                stock_price = get_stock_price(symbol)
+                if stock_price is None:
+                    st.write(f"⚠️ Skipping {symbol} due to missing stock price.")
+                    continue
+
+                # Fetch options chain
+                data = get_options_chain(symbol)
+                if not data:
+                    st.write(f"⚠️ No valid options data for {symbol}.")
+                    continue
+
+                # Analyze options chain
+                result = analyze_options_chain(data, selected_expiration, stock_price)
+
+                # Append results
+                call_premium = result["call_premium"]
+                put_premium = result["put_premium"]
+                put_call_ratio = put_premium / call_premium if call_premium > 0 else float("inf")
+
+                results.append({
+                    "symbol": symbol,
+                    "stock_price": stock_price,
+                    "call_premium": call_premium,
+                    "put_premium": put_premium,
+                    "put_call_ratio": put_call_ratio,
+                    "call_heatmap": result["call_heatmap"],
+                    "put_heatmap": result["put_heatmap"],
+                })
+
+                # Display partial result with better formatting
+                st.markdown(f"#### **{symbol}**")
+                st.markdown(
+                    f"""
+                    - **Stock Price:** ${stock_price:,.2f}  
+                    - **Call Premium:** ${call_premium:,}  
+                    - **Put Premium:** ${put_premium:,}  
+                    - **Put-to-Call Ratio:** {put_call_ratio:.2f}
+                    """
+                )
+
+                st.markdown("##### Top 5 Call Heatmap Strikes")
+                call_heatmap_data = pd.DataFrame(
+                    sorted(result["call_heatmap"].items(), key=lambda x: x[1], reverse=True)[:5],
+                    columns=["Strike Price", "Premium"]
+                )
+                call_heatmap_data["Premium"] = call_heatmap_data["Premium"].apply(lambda x: f"${x:,}")
+                st.table(call_heatmap_data)
+
+                st.markdown("##### Top 5 Put Heatmap Strikes")
+                put_heatmap_data = pd.DataFrame(
+                    sorted(result["put_heatmap"].items(), key=lambda x: x[1], reverse=True)[:5],
+                    columns=["Strike Price", "Premium"]
+                )
+                put_heatmap_data["Premium"] = put_heatmap_data["Premium"].apply(lambda x: f"${x:,}")
+                st.table(put_heatmap_data)
+
+        # Final summary
+        if results:
+            st.markdown("### 🏆 Final Results")
+            df = pd.DataFrame(results).sort_values("put_call_ratio", ascending=False)
+            st.dataframe(df[["symbol", "stock_price", "call_premium", "put_premium", "put_call_ratio"]])
+        else:
+            st.write("⚠️ No data available for the selected tickers and expiration.")
 
 # Run the app
 if __name__ == "__main__":

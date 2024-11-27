@@ -11,9 +11,8 @@ from tickers import *
 import time
 from dotenv import load_dotenv
 load_dotenv()
-import os 
 
-apiUrl = os.getenv("API")
+apiUrl = st.secrets["API"]
 # User agent pool
 user_agents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",

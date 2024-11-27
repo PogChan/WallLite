@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 apiUrl = st.secrets["API"]
+baseURL = st.secrets["BASEAPI"]
 # User agent pool
 user_agents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
@@ -24,7 +25,7 @@ user_agents = [
 @st.cache_data(ttl=43200)
 def get_options_chain(symbol):
     time.sleep(1)
-    url = f"{apiUrl}ajax/getOptions?stock={symbol.upper()}&reqId={random.randint(1, 1000000)}"
+    url = f"{baseURL}?stock={symbol.upper()}&reqId={random.randint(1, 1000000)}"
     headers = {
         'User-Agent': random.choice(user_agents),
         "Accept-Language": "en-US,en;q=0.9",

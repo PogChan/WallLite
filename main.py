@@ -111,7 +111,7 @@ def analyze_options_chain(data, exp_date, stock_price):
         "put_heatmap": put_heatmap,
     }
 def main():
-    st.title("✨ Options Scanner Interface")
+    st.title("✨ EFI Options Imbalance Screener")
     st.markdown(
         """
         **Welcome to the Options Scanner!**  

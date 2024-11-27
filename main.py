@@ -1,3 +1,6 @@
+# Copyright (c) 2024 PogChan Github
+# All rights reserved.
+
 import streamlit as st
 import yfinance as yf
 import requests
@@ -111,10 +114,11 @@ def analyze_options_chain(data, exp_date, stock_price):
         "put_heatmap": put_heatmap,
     }
 def main():
-    st.title("✨ EFI Options Imbalance Screener")
+    st.title("✨ EFI Imbalance Screener")
+
     st.markdown(
         """
-        **Welcome to the Options Scanner!**  
+        **Welcome to the Options Scanner by PogChan!**  
         Select a sector, customize tickers, and choose an expiration date to analyze options data with a beautiful interface.  
         """
     )

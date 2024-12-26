@@ -4,25 +4,7 @@ import plotly.graph_objects as go
 from datetime import timedelta
 
 def plotChartOI(symbol, data, exp_date, top_n=5):
-    """
-    1) Download ~1 month of daily candlestick data for `symbol`.
-    2) Identify:
-       - top_n Calls by OI (green),
-       - top_n Puts by OI (red),
-       - top_n Calls by Volume (orange),
-       - top_n Puts by Volume (blue).
-    3) Overlay horizontal bars on the right side, anchored near max_date,
-       with length proportional to a SINGLE unified scale of OI & Volume.
-    4) Shift each bar up/down by a few cents so lines at the same strike
-       don't perfectly overlap.
-    5) Clamp bar lengths so they don't go off the chart.
-    6) Hover each bar to see OI, Volume, totalValue, etc.
-       (By default, only the invisible midpoint is hoverable; see note below.)
-    """
-
-    # ------------------------------------------------------------------
-    # 1) Download ~1 month of daily candlestick data
-    # ------------------------------------------------------------------
+    #Download 1 month of data its free
     df = yf.download(symbol, period="1mo", interval="1d")
     if df.empty:
         st.warning(f"No price data for {symbol}.")
@@ -32,9 +14,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
     if hasattr(df.columns, "droplevel") and len(df.columns.levels) > 1:
         df.columns = df.columns.droplevel(-1)
 
-    # ------------------------------------------------------------------
-    # 2) Verify we have option chain data for exp_date
-    # ------------------------------------------------------------------
+    # chain is verified but we want to just dobule check the exp exists
     if exp_date not in data.get("options", {}):
         st.warning(f"No options data found for {exp_date}.")
         return
@@ -42,12 +22,9 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
     calls_dict = data["options"][exp_date].get("c", {})
     puts_dict  = data["options"][exp_date].get("p", {})
 
-    # ------------------------------------------------------------------
-    # 3) Parse calls & puts to find OI, volume, totalValue
-    # ------------------------------------------------------------------
+    # get the data for the actual options parsing
     def parse_chain(chain, opt_type):
         """
-        Return a list of dicts:
          {
            "type":      "call" or "put",
            "strike":    float,
@@ -89,14 +66,14 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
     calls = parse_chain(calls_dict, "call")
     puts  = parse_chain(puts_dict,  "put")
 
-    # Sort & pick top_n by OI, top_n by Volume
+    #Sort & pick top_n by OI, top_n by Volume
     top_calls_oi     = sorted(calls, key=lambda x: x["oi"],     reverse=True)[:top_n]
     top_calls_volume = sorted(calls, key=lambda x: x["volume"], reverse=True)[:top_n]
     top_puts_oi      = sorted(puts,  key=lambda x: x["oi"],     reverse=True)[:top_n]
     top_puts_volume  = sorted(puts,  key=lambda x: x["volume"], reverse=True)[:top_n]
 
-    # Combine them into a single list for "bars"
-    # We'll store {"type":"call"/"put","strike", "oi","volume","totalValue","metric":"oi"/"volume"}
+
+    #{"type":"call"/"put","strike", "oi","volume","totalValue","metric":"oi"/"volume"}
     lines = []
 
     # calls by OI -> green
@@ -116,9 +93,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
         st.warning("No OI/Volume data found.")
         return
 
-    # ------------------------------------------------------------------
-    # 4) Build candlestick chart
-    # ------------------------------------------------------------------
+    #this is actually fire they have it lol
     fig = go.Figure()
     fig.add_trace(
         go.Candlestick(
@@ -137,9 +112,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
     if total_days < 1:
         total_days = 1
 
-    # ------------------------------------------------------------------
-    # 5) Unify OI and Volume into one scale
-    # ------------------------------------------------------------------
+    # the largest will be the scale here.
     all_vals = []
     for r in lines:
         if r["metric"] == "oi":
@@ -156,9 +129,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
             return 1
         return (v - min_val) / (max_val - min_val)
 
-    # ------------------------------------------------------------------
-    # 6) Slight offset for lines at same strike
-    # ------------------------------------------------------------------
+    # prevent overlapwith tiny price offset
     offset_map = {
        ("call","oi"):     0.02,
        ("call","volume"): 0.01,
@@ -166,7 +137,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
        ("put","volume"): -0.02
     }
 
-    # We'll anchor each bar near the right side (max_date),
+    # anchro each bar near the right side (max_date),
     # then extend left by bar_length_days, clamping at 90% of chart width.
     day_offset = 0.0
 
@@ -178,19 +149,18 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
         tval   = entry["totalValue"]
         metric = entry["metric"]     # "oi" or "volume"
 
-        # Decide color
         if   (typ == "call" and metric=="oi"):       color = "green"
         elif (typ == "put"  and metric=="oi"):       color = "red"
         elif (typ == "call" and metric=="volume"):   color = "orange"
         else:                                        color = "blue"
 
-        # 1) Determine the raw value (OI or Volume)
+
         raw_value = oi if metric == "oi" else vol
-        # 2) Convert to scale [0..1] across all OI+Volume
         scale = unify_normalize(raw_value)
 
-        # 3) length in days => up to 50% of total_days
+        #well the thing is that we need to scale the bar length based off the days so its ezpz
         bar_length_days = scale * (0.5 * total_days)
+
         # clamp so we don't go off the chart entirely
         bar_length_days = min(bar_length_days, 0.9 * total_days)
 
@@ -203,7 +173,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
         y0 = strike + y_offset
         y1 = strike + y_offset
 
-        # 4) add shape (the "bar")
+        #get the bar added
         fig.add_shape(
             type="line",
             xref="x", yref="y",
@@ -232,11 +202,9 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
             )
         )
 
-        day_offset += 0.7  # shift next bar left by 0.7 day
+        day_offset += 0.7  # shift next bar left by 0.7 day to avoid clumping tbh
 
-    # ------------------------------------------------------------------
-    # 7) Final Layout
-    # ------------------------------------------------------------------
+
     fig.update_layout(
         title=(
             f"{symbol.upper()} — {exp_date}<br>"

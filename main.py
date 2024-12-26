@@ -152,9 +152,18 @@ def main():
     # fridays selection date
     expiration_dates = get_next_fridays()
     selected_expiration = st.selectbox("📅 Select an Options Expiration Date:", expiration_dates)
+    if "runAnalysis" not in st.session_state:
+        st.session_state.runAnalysis = False
 
-    # LETS GETT IT TTT
-    if st.button("🚀 Run Analysis"):
+    if "top_n" not in st.session_state:
+        st.session_state.top_n = 5
+
+    def run_analysis_callback():
+        st.session_state.runAnalysis = True
+
+    st.button("🚀 Run Analysis", on_click=run_analysis_callback)
+
+    if st.session_state.runAnalysis:
         st.markdown("### 📈 Analyzing Options Data...")
         results = []
 
@@ -201,7 +210,11 @@ def main():
                     - **Put-to-Call Ratio:** {put_call_ratio:.2f}
                     """
                 )
-                plotChartOI(symbol, data, selected_expiration)
+                top_n = st.number_input('How many top strikes to display?', min_value=1, value=5)
+                if top_n != st.session_state.top_n:
+                    st.session_state.top_n = top_n
+
+                plotChartOI(symbol, data, selected_expiration, top_n=top_n)
 
                 st.markdown("##### Top 5 Call Heatmap Strikes")
                 call_heatmap_data = pd.DataFrame(

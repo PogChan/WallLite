@@ -151,7 +151,10 @@ def main():
 
     # fridays selection date
     expiration_dates = get_next_fridays()
-    selected_expiration = st.selectbox("📅 Select an Options Expiration Date:", expiration_dates)
+    expTopCols = st.columns(2)
+    selected_expiration = expTopCols[0].selectbox("📅 Select an Options Expiration Date:", expiration_dates)
+    top_n = expTopCols[1].number_input('🔝How many top strikes to display?', min_value=1, value=5)
+
     if "runAnalysis" not in st.session_state:
         st.session_state.runAnalysis = False
 
@@ -210,7 +213,6 @@ def main():
                     - **Put-to-Call Ratio:** {put_call_ratio:.2f}
                     """
                 )
-                top_n = st.number_input('How many top strikes to display?', min_value=1, value=5)
                 if top_n != st.session_state.top_n:
                     st.session_state.top_n = top_n
 

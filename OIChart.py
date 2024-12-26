@@ -113,7 +113,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
         total_days = 1
 
     # the largest will be the scale here.
-    all_vals = []
+    all_vals = [2000]
     for r in lines:
         if r["metric"] == "oi":
             all_vals.append(r["oi"])

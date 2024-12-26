@@ -3,7 +3,7 @@ import yfinance as yf
 import plotly.graph_objects as go
 from datetime import timedelta
 
-def plotChartOI(symbol, data, exp_date, top_n=3):
+def plotChartOI(symbol, data, exp_date, top_n=5):
     """
     1) Download ~1 month of daily candlestick data for `symbol`.
     2) Identify:
@@ -217,10 +217,10 @@ def plotChartOI(symbol, data, exp_date, top_n=3):
         mid_time = x0 + (x1 - x0)/2
         hover_text = (
             f"<b>{typ.upper()} {metric.upper()}</b><br>"
-            f"Strike: {strike} (offset={y_offset:+.2f})<br>"
+            f"Strike: {strike}<br>"
             f"OI: {oi}<br>"
             f"Volume: {vol}<br>"
-            f"Total Premium: {tval:,.2f}<br>"
+            f"Total Premium: ${tval:,.0f}<br>"
         )
         fig.add_trace(
             go.Scatter(

@@ -141,7 +141,7 @@ def main():
     # custom text box
     default_tickers = ", ".join(sectors[selected_sector])
     tickers_input = st.text_area(
-        "📝 Tickers (comma-separated):",
+        "📝 Tickers (comma-separated) ^SPX:",
         value=default_tickers,
         help="You can customize the tickers here. Separate each ticker with a comma."
     )
@@ -150,10 +150,15 @@ def main():
     tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
 
     # fridays selection date
-    expiration_dates = get_next_fridays()
+    expiration_dates = get_next_fridays() + ['Custom Date']
     expTopCols = st.columns(2)
     selected_expiration = expTopCols[0].selectbox("📅 Select an Options Expiration Date:", expiration_dates)
     top_n = expTopCols[1].number_input('🔝How many top strikes to display?', min_value=1, value=5)
+
+    if selected_expiration == 'Custom Date':
+        custom_date = st.date_input('📆 Select a custom date'
+                                    , datetime.now() + timedelta(days=7))
+        selected_expiration = custom_date.strftime('%Y-%m-%d')
 
     if "runAnalysis" not in st.session_state:
         st.session_state.runAnalysis = False

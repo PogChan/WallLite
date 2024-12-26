@@ -11,6 +11,7 @@ from tickers import *
 import time
 from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor
+from OIChart import *
 
 load_dotenv()
 
@@ -41,7 +42,7 @@ def get_options_chain(symbol):
     else:
         st.error(f"Failed to fetch options chain for {symbol}. Status code: {response.status_code}")
         return None
-    
+
 def fetch_ticker_data(symbol):
     return {symbol: get_options_chain(symbol)}
 
@@ -62,10 +63,10 @@ def get_next_fridays(n=10):
     # find el next fridiossss
     days_until_next_friday = (4 - today.weekday() + 7) % 7
     next_friday = today + timedelta(days=days_until_next_friday)
-    
+
     for i in range(n):
         fridays.append(next_friday + timedelta(weeks=i))
-    
+
     return [friday.strftime('%Y-%m-%d') for friday in fridays]
 
 
@@ -94,14 +95,14 @@ def analyze_options_chain(data, exp_date, stock_price):
 
         # get premiums
         for strike in valid_strikes:
-         
+
             strike_key = f"{strike:.2f}"
             info = data.get(strike_key, {})
-   
+
             # make sure its got the actual b a oi info
             if 'b' in info and 'a' in info and 'oi' in info:
                 mid_price = (info.get("b", 0) + info.get("a", 0)) / 2
-                total_premium = round(mid_price * info.get("oi", 0)) * 100 
+                total_premium = round(mid_price * info.get("oi", 0)) * 100
                 premiums[float(strike_key)] = total_premium
             else:
                 st.write(f"Invalid data for strike {strike_key}: {info}")
@@ -112,7 +113,7 @@ def analyze_options_chain(data, exp_date, stock_price):
     call_heatmap = process_options(call_data, stock_price)
     put_heatmap = process_options(put_data, stock_price)
 
-    # calc total call and puts 
+    # calc total call and puts
     call_premium = sum(call_heatmap.values())
     put_premium = sum(put_heatmap.values())
 
@@ -128,16 +129,16 @@ def main():
 
     st.markdown(
         """
-        **Welcome to the Options Scanner by PogChan!**  
-        Select a sector, customize tickers, and choose an expiration date to analyze options data with a beautiful interface.  
+        **Welcome to the Options Scanner by PogChan!**
+        Select a sector, customize tickers, and choose an expiration date to analyze options data with a beautiful interface.
         """
     )
 
-    # selection drop down from ticker grops like industries and sectors 
+    # selection drop down from ticker grops like industries and sectors
     sector_keys = list(sectors.keys())
     selected_sector = st.selectbox("📊 Select a Sector:", sector_keys)
 
-    # custom text box 
+    # custom text box
     default_tickers = ", ".join(sectors[selected_sector])
     tickers_input = st.text_area(
         "📝 Tickers (comma-separated):",
@@ -145,7 +146,7 @@ def main():
         help="You can customize the tickers here. Separate each ticker with a comma."
     )
 
-    # make sure we get the tickers rihgt 
+    # make sure we get the tickers rihgt
     tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
 
     # fridays selection date
@@ -171,10 +172,11 @@ def main():
                     st.write(f"⚠️ No valid options data for {symbol}.")
                     continue
 
+
                 # get hte call put premium stuff from the chain parsed
                 result = analyze_options_chain(data, selected_expiration, stock_price)
 
-                #get the results into a final little mapping 
+                #get the results into a final little mapping
                 call_premium = result["call_premium"]
                 put_premium = result["put_premium"]
                 put_call_ratio = put_premium / call_premium if call_premium > 0 else float("inf")
@@ -193,12 +195,13 @@ def main():
                 st.markdown(f"#### **{symbol}**")
                 st.markdown(
                     f"""
-                    - **Stock Price:** ${stock_price:,.2f}  
-                    - **Call Premium:** ${call_premium:,}  
-                    - **Put Premium:** ${put_premium:,}  
+                    - **Stock Price:** ${stock_price:,.2f}
+                    - **Call Premium:** ${call_premium:,}
+                    - **Put Premium:** ${put_premium:,}
                     - **Put-to-Call Ratio:** {put_call_ratio:.2f}
                     """
                 )
+                plotChartOI(symbol, data, selected_expiration)
 
                 st.markdown("##### Top 5 Call Heatmap Strikes")
                 call_heatmap_data = pd.DataFrame(

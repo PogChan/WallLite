@@ -202,8 +202,43 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
             )
         )
 
-        day_offset += 0.7  # shift next bar left by 0.7 day to avoid clumping tbh
+        # day_offset += 0.7  # shift next bar left by 0.7 day to avoid clumping tbh
+    # LEGENDS DATAS THESE ARE INVISIBLE
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode="lines",
+        line=dict(color="green", width=6),
+        name="Call OI"
+    ))
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode="lines",
+        line=dict(color="red", width=6),
+        name="Put OI"
+    ))
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode="lines",
+        line=dict(color="orange", width=6),
+        name="Call Volume"
+    ))
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode="lines",
+        line=dict(color="blue", width=6),
+        name="Put Volume"
+    ))
 
+    # Layout
+    fig.update_layout(
+        title=f"{symbol.upper()} - {exp_date}",
+        xaxis_title="Date",
+        yaxis_title="Price",
+        xaxis_rangeslider_visible=False,
+        height=800
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
     fig.update_layout(
         title=(

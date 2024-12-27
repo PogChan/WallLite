@@ -123,6 +123,65 @@ def analyze_options_chain(data, exp_date, stock_price):
         "call_heatmap": call_heatmap,
         "put_heatmap": put_heatmap,
     }
+def compare_atm_mispricing(data, exp_date, stock_price):
+    """
+    Finds the ATM strike (closest to current stock_price),
+    retrieves that strike’s call and put,
+    computes mid-price for each, and returns the difference.
+
+    Returns a dict with:
+      {
+        "atm_strike": float,
+        "call_mid": float,
+        "put_mid": float,
+        "difference": float,   # call_mid - put_mid
+      }
+    or None if data is missing.
+    """
+
+    # make sure the exp date is there
+    if exp_date not in data.get("options", {}):
+        return None
+
+    calls_dict = data["options"][exp_date].get("c", {})
+    puts_dict  = data["options"][exp_date].get("p", {})
+
+    #fetch all available strikes
+    all_strikes = sorted(list(set(float(s) for s in calls_dict.keys()) |
+                              set(float(s) for s in puts_dict.keys())))
+
+    if not all_strikes:
+        return None
+
+    #find the strike closest to stock_price (ATM)
+    atm_strike = min(all_strikes, key=lambda strike: abs(strike - stock_price))
+    atm_strike_str = f"{atm_strike:.2f}"
+
+    #retrieve the call/put info if it exists
+    call_info = calls_dict.get(atm_strike_str, {})
+    put_info  = puts_dict.get(atm_strike_str, {})
+
+    #compute the mid-price for each if possible
+    def get_mid_price(info):
+        # we need bid/ask
+        if "b" in info and "a" in info and info["b"] > 0 and info["a"] > 0:
+            return (info["b"] + info["a"]) / 2
+        return 0.0
+
+    call_mid = get_mid_price(call_info)
+    put_mid  = get_mid_price(put_info)
+
+    # 6) The difference might show mispricing (call - put)
+    difference = call_mid - put_mid
+    percentage = (difference / ((call_mid + put_mid) / 2)) * 100 if call_mid + put_mid > 0 else 0
+    return {
+        "atm_strike": atm_strike,
+        "call_mid": call_mid,
+        "put_mid": put_mid,
+        "difference": difference,
+        "precentage": percentage,
+        "direction": "Bearish" if percentage > 20 else "Bullish" if percentage < -20 else "Neutral"
+    }
 
 def main():
     st.title("✨ EFI Imbalance Screener")
@@ -208,6 +267,7 @@ def main():
                     "put_heatmap": result["put_heatmap"],
                 })
 
+
                 # displays
                 st.markdown(f"#### **{symbol}**")
                 st.markdown(
@@ -217,6 +277,18 @@ def main():
                     - **Put Premium:** ${put_premium:,}
                     - **Put-to-Call Ratio:** {put_call_ratio:.2f}
                     """
+                )
+                atm_mispricing = compare_atm_mispricing(data, selected_expiration, stock_price)
+
+                if atm_mispricing:
+                    # st.write(atm_mispricing)
+                    st.markdown(f"**ATM Strike:** {atm_mispricing['atm_strike']}")
+                    st.markdown(
+                        f"""
+                        - {"🐻" if atm_mispricing['direction'] == 'Bearish' else "🐂"} Potential {atm_mispricing['direction']} Mispricing
+                        - {atm_mispricing['call_mid']:.2f} Call - {atm_mispricing['put_mid']:.2f} Put
+                        - Difference: {atm_mispricing['difference']:.2f} ({atm_mispricing['precentage']:.2f}%)
+                        """
                 )
                 if top_n != st.session_state.top_n:
                     st.session_state.top_n = top_n

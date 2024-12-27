@@ -12,6 +12,7 @@ XLF=["JPM", "BRK.B", "BAC", "WFC", "C", "GS", "MS", "AXP", "SPGI", "SCHW", "BLK"
 ARKK=["COIN", "SQ", "DKNG", "PACB", "PATH", "ROKU", "CRSP", "EXAS", "SHOP", "ZM", "HOOD", "RBLX", "TWLO", "TDOC", "TSLA", "U"]
 CHINA= ["BABA", "JD", "BIDU", "PDD", "LI", "NIO", "FXI", "KWEB"]
 spy500= XLF+XLB+XLC+XLE+XLI+XLK+XLP+XLRE+XLU+XLV+XLY+ARKK+CHINA
+MAG7 = ["AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "NVDA"]
 SECTORS = ['XLY', 'XLK', 'XLC', 'XLU', 'XLP', 'XLRE', 'XLV', 'XLF', 'XLE', 'XLI', 'XLB', 'ARKK']
 PPH=["JNJ", "NVO", "MRK", "ABBV", "ZTS", "HLN", "AZN", "LLY", "TAK", "NVS", "VTRS", "SNY", "BMY", "GSK", "PFE", "MCK", "ABC", "TEVA", "CTLT", "JAZZ", "OGN", "PRGO", "ELAN", "BHC", "PDCO"]
 MOO=["ZTS", "BAYN", "DE", "NTR", "CTVA", "ADM", "CNHI", "TSN", "SQM", "MOS"]

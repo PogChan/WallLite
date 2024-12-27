@@ -164,7 +164,7 @@ def compare_atm_mispricing(data, exp_date, stock_price):
     #compute the mid-price for each if possible
     def get_mid_price(info):
         # we need bid/ask
-        if "b" in info and "a" in info and info["b"] > 0 and info["a"] > 0:
+        if "b" in info and "a" in info:
             return (info["b"] + info["a"]) / 2
         return 0.0
 
@@ -285,7 +285,7 @@ def main():
                     st.markdown(f"**ATM Strike:** {atm_mispricing['atm_strike']}")
                     st.markdown(
                         f"""
-                        - {"🐻" if atm_mispricing['direction'] == 'Bearish' else "🐂"} Potential {atm_mispricing['direction']} Mispricing
+                        - {"🐻" if atm_mispricing['direction'] == 'Bearish' else "🐂" if atm_mispricing['direction'] == 'Bullish' else "😐"} Potential {atm_mispricing['direction']} Mispricing
                         - {atm_mispricing['call_mid']:.2f} Call - {atm_mispricing['put_mid']:.2f} Put
                         - Difference: {atm_mispricing['difference']:.2f} ({atm_mispricing['precentage']:.2f}%)
                         """

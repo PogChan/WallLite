@@ -286,7 +286,7 @@ def main():
                     st.markdown(
                         f"""
                         - {"🐻" if atm_mispricing['direction'] == 'Bearish' else "🐂" if atm_mispricing['direction'] == 'Bullish' else "😐"} Potential {atm_mispricing['direction']} Mispricing
-                        - {atm_mispricing['call_mid']:.2f} Call - {atm_mispricing['put_mid']:.2f} Put
+                        - {atm_mispricing['call_mid']:.2f} ATM Call - {atm_mispricing['put_mid']:.2f} ATM Put
                         - Difference: {atm_mispricing['difference']:.2f} ({atm_mispricing['precentage']:.2f}%)
                         """
                 )

@@ -1,6 +1,6 @@
 # Copyright (c) 2024 PogChan Github
 # All rights reserved.
-
+import cloudscraper
 import streamlit as st
 import yfinance as yf
 import requests
@@ -22,20 +22,25 @@ user_agents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
     "Mozilla/5.0 (X11; Ubuntu; Linux x86_64)",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
 ]
+
 
 # run options chain
 @st.cache_data(ttl=60*60*8)
 def get_options_chain(symbol):
     time.sleep(1)
     url = f"{baseURL}?stock={symbol.upper()}&reqId={random.randint(1, 1000000)}"
-    headers = {
-        'User-Agent': random.choice(user_agents),
-        "Accept-Language": "en-US,en;q=0.9",
-        'Referer': apiUrl,
-        'Accept': 'application/json',
-    }
-    response = requests.get(url, headers=headers)
+    st.write(url)
+    # headers = {
+    #     'User-Agent': random.choice(user_agents),
+    #     "Accept-Language": "en-US,en;q=0.9",
+    #     'Referer': apiUrl,
+    #     "Accept": "application/json, text/plain, */*",
+    # }
+    # response = requests.get(url, headers=headers)
+    scraper = cloudscraper.create_scraper()
+    response = scraper.get(url)
 
     if response.status_code == 200:
         return response.json()
@@ -257,15 +262,6 @@ def main():
                 put_premium = result["put_premium"]
                 put_call_ratio = put_premium / call_premium if call_premium > 0 else float("inf")
 
-                results.append({
-                    "symbol": symbol,
-                    "stock_price": stock_price,
-                    "call_premium": call_premium,
-                    "put_premium": put_premium,
-                    "put_call_ratio": put_call_ratio,
-                    "call_heatmap": result["call_heatmap"],
-                    "put_heatmap": result["put_heatmap"],
-                })
 
 
                 # displays
@@ -290,6 +286,20 @@ def main():
                         - Difference: {atm_mispricing['difference']:.2f} ({atm_mispricing['precentage']:.2f}%)
                         """
                 )
+
+
+                results.append({
+                    "Symbol": symbol,
+                    "Stock Price": stock_price,
+                    "Sum Call Premium": call_premium,
+                    "Sum Put Premium": put_premium,
+                    "Put-To-Call Ratio": put_call_ratio,
+                    "call_heatmap": result["call_heatmap"],
+                    "put_heatmap": result["put_heatmap"],
+                    "ATM Premium Difference": atm_mispricing['difference'],
+                    "Percentage Significance": atm_mispricing['precentage'],
+                })
+
                 if top_n != st.session_state.top_n:
                     st.session_state.top_n = top_n
 
@@ -314,8 +324,8 @@ def main():
         # final
         if results:
             st.markdown("### 🏆 Final Results")
-            df = pd.DataFrame(results).sort_values("put_call_ratio", ascending=False)
-            st.dataframe(df[["symbol", "stock_price", "call_premium", "put_premium", "put_call_ratio"]])
+            df = pd.DataFrame(results).sort_values("Put-To-Call Ratio", ascending=False)
+            st.dataframe(df[["Symbol", "Stock Price", "Sum Call Premium", "Sum Put Premium", "Put-To-Call Ratio", "ATM Premium Difference", "Percentage Significance"]])
         else:
             st.write("⚠️ No data available for the selected tickers and expiration.")
 

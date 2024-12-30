@@ -31,7 +31,7 @@ user_agents = [
 def get_options_chain(symbol):
     time.sleep(1)
     url = f"{baseURL}?stock={symbol.upper()}&reqId={random.randint(1, 1000000)}"
-    st.write(url)
+    # st.write(url)
     # headers = {
     #     'User-Agent': random.choice(user_agents),
     #     "Accept-Language": "en-US,en;q=0.9",

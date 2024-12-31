@@ -27,7 +27,7 @@ user_agents = [
 
 
 # run options chain
-@st.cache_data(ttl=60*60*8)
+@st.cache_data(ttl=60*60)
 def get_options_chain(symbol):
     time.sleep(1)
     url = f"{baseURL}?stock={symbol.upper()}&reqId={random.randint(1, 1000000)}"

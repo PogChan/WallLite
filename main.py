@@ -143,10 +143,18 @@ def compare_atm_mispricing(data, exp_date, stock_price):
       }
     or None if data is missing.
     """
+    nothing = {
+        "atm_strike": 0,
+        "call_mid": 0,
+        "put_mid": 0,
+        "difference": 0,
+        "precentage": 0,
+        "direction": 'Options Chain Not Valid'
+    }
 
     # make sure the exp date is there
     if exp_date not in data.get("options", {}):
-        return None
+        return nothing
 
     calls_dict = data["options"][exp_date].get("c", {})
     puts_dict  = data["options"][exp_date].get("p", {})
@@ -156,7 +164,7 @@ def compare_atm_mispricing(data, exp_date, stock_price):
                               set(float(s) for s in puts_dict.keys())))
 
     if not all_strikes:
-        return None
+        return nothing
 
     #find the strike closest to stock_price (ATM)
     atm_strike = min(all_strikes, key=lambda strike: abs(strike - stock_price))
@@ -275,18 +283,15 @@ def main():
                     """
                 )
                 atm_mispricing = compare_atm_mispricing(data, selected_expiration, stock_price)
-
-                if atm_mispricing:
-                    # st.write(atm_mispricing)
-                    st.markdown(f"**ATM Strike:** {atm_mispricing['atm_strike']}")
-                    st.markdown(
-                        f"""
-                        - {"🐻" if atm_mispricing['direction'] == 'Bearish' else "🐂" if atm_mispricing['direction'] == 'Bullish' else "😐"} Potential {atm_mispricing['direction']} Mispricing
-                        - {atm_mispricing['call_mid']:.2f} ATM Call - {atm_mispricing['put_mid']:.2f} ATM Put
-                        - Difference: {atm_mispricing['difference']:.2f} ({atm_mispricing['precentage']:.2f}%)
-                        """
-                )
-
+            
+                # st.write(atm_mispricing)
+                st.markdown(f"**ATM Strike:** {atm_mispricing['atm_strike']}")
+                st.markdown(
+                    f"""
+                    - {"🐻" if atm_mispricing['direction'] == 'Bearish' else "🐂" if atm_mispricing['direction'] == 'Bullish' else "😐"} Potential {atm_mispricing['direction']} Mispricing
+                    - {atm_mispricing['call_mid']:.2f} ATM Call - {atm_mispricing['put_mid']:.2f} ATM Put
+                    - Difference: {atm_mispricing['difference']:.2f} ({atm_mispricing['precentage']:.2f}%)
+                    """)
 
                 results.append({
                     "Symbol": symbol,

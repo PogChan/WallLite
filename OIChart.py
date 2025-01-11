@@ -93,6 +93,29 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
         st.warning("No OI/Volume data found.")
         return
 
+    # -------------------------------------------------------------------------
+    # NEW: Add a toggle so user can choose which bars (calls/puts/both) to show
+    # -------------------------------------------------------------------------
+    display_choice = st.selectbox(
+        "Show Which Bars?",
+        ["Both Calls & Puts", "Calls Only", "Puts Only"]
+    )
+
+    # Filter the lines based on user choice
+    filtered_lines = []
+    for line in lines:
+        if display_choice == "Calls Only" and line["type"] == "call":
+            filtered_lines.append(line)
+        elif display_choice == "Puts Only" and line["type"] == "put":
+            filtered_lines.append(line)
+        elif display_choice == "Both Calls & Puts":
+            filtered_lines.append(line)
+
+    if not filtered_lines:
+        st.warning(f"No {display_choice} data found.")
+        return
+    # -------------------------------------------------------------------------
+
     #this is actually fire they have it lol
     fig = go.Figure()
     fig.add_trace(
@@ -114,7 +137,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 
     # the largest will be the scale here.
     all_vals = [2000]
-    for r in lines:
+    for r in filtered_lines:  # changed to filtered_lines
         if r["metric"] == "oi":
             all_vals.append(r["oi"])
         else:
@@ -131,17 +154,17 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 
     # prevent overlapwith tiny price offset
     offset_map = {
-       ("call","oi"):     0.10,
-       ("call","volume"): 0.05,
-       ("put","oi"):     -0.05,
-       ("put","volume"): -0.10
+       ("call","oi"):     0.05,
+       ("call","volume"): 0.01,
+       ("put","oi"):     -0.01,
+       ("put","volume"): -0.05
     }
 
     # anchro each bar near the right side (max_date),
     # then extend left by bar_length_days, clamping at 90% of chart width.
     day_offset = 0.0
 
-    for entry in lines:
+    for entry in filtered_lines:  # changed to filtered_lines
         typ    = entry["type"]       # "call" or "put"
         strike = entry["strike"]
         oi     = entry["oi"]
@@ -203,6 +226,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
         )
 
         # day_offset += 0.7  # shift next bar left by 0.7 day to avoid clumping tbh
+
     # LEGENDS DATAS THESE ARE INVISIBLE
     fig.add_trace(go.Scatter(
         x=[None], y=[None],

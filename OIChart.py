@@ -3,7 +3,7 @@ import yfinance as yf
 import plotly.graph_objects as go
 from datetime import timedelta
 
-def plotChartOI(symbol, data, exp_date, top_n=5):
+def plotChartOI(symbol, data, exp_date,display_choice, top_n=5):
     #Download 1 month of data its free
     df = yf.download(symbol, period="1mo", interval="1d")
     if df.empty:
@@ -93,13 +93,6 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
         st.warning("No OI/Volume data found.")
         return
 
-    # -------------------------------------------------------------------------
-    # NEW: Add a toggle so user can choose which bars (calls/puts/both) to show
-    # -------------------------------------------------------------------------
-    display_choice = st.selectbox(
-        "Show Which Bars?",
-        ["Both Calls & Puts", "Calls Only", "Puts Only"]
-    )
 
     # Filter the lines based on user choice
     filtered_lines = []

@@ -246,7 +246,10 @@ def main():
     if st.session_state.runAnalysis:
         st.markdown("### 📈 Analyzing Options Data...")
         results = []
-
+        display_choice = st.selectbox(
+                "Show Which Bars?",
+                ["Both Calls & Puts", "Calls Only", "Puts Only"]
+            )
         for symbol in tickers:
             with st.spinner(f"🔍 Analyzing {symbol}..."):
                 # stock price fetch yfinance
@@ -308,10 +311,7 @@ def main():
                 if top_n != st.session_state.top_n:
                     st.session_state.top_n = top_n
 
-                display_choice = st.selectbox(
-                    "Show Which Bars?",
-                    ["Both Calls & Puts", "Calls Only", "Puts Only"]
-                )
+
 
                 plotChartOI(symbol, data, selected_expiration,display_choice, top_n=top_n)
 

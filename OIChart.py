@@ -134,7 +134,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 
     # the largest will be the scale here.
     all_vals = [2000]
-    for r in filtered_lines:  # changed to filtered_lines
+    for r in lines:  # changed to filtered_lines
         if r["metric"] == "oi":
             all_vals.append(r["oi"])
         else:
@@ -151,10 +151,10 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 
     # prevent overlapwith tiny price offset
     offset_map = {
-       ("call","oi"):     0.05,
-       ("call","volume"): 0.01,
-       ("put","oi"):     -0.01,
-       ("put","volume"): -0.05
+       ("call","oi"):     0.1,
+       ("put","oi"):     -0.1,
+       ("call","volume"): 0.05,
+       ("put","volume"): -0.05,
     }
 
     # anchro each bar near the right side (max_date),

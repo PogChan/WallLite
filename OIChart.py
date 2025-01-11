@@ -131,10 +131,10 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 
     # prevent overlapwith tiny price offset
     offset_map = {
-       ("call","oi"):     0.03,
-       ("call","volume"): 0.01,
-       ("put","oi"):     -0.01,
-       ("put","volume"): -0.03
+       ("call","oi"):     0.10,
+       ("call","volume"): 0.05,
+       ("put","oi"):     -0.05,
+       ("put","volume"): -0.10
     }
 
     # anchro each bar near the right side (max_date),

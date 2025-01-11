@@ -72,7 +72,6 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
     top_puts_oi      = sorted(puts,  key=lambda x: x["oi"],     reverse=True)[:top_n]
     top_puts_volume  = sorted(puts,  key=lambda x: x["volume"], reverse=True)[:top_n]
 
-
     #{"type":"call"/"put","strike", "oi","volume","totalValue","metric":"oi"/"volume"}
     lines = []
 
@@ -92,6 +91,10 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
     if not lines:
         st.warning("No OI/Volume data found.")
         return
+
+    # -------------------------------------------------------------------------
+    # Toggle calls/puts/both
+    # -------------------------------------------------------------------------
     display_choice = st.selectbox(
             "Show Which Bars?",
             ["Both Calls & Puts", "Calls Only", "Puts Only"],
@@ -111,7 +114,12 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
     if not filtered_lines:
         st.warning(f"No {display_choice} data found.")
         return
-    # -------------------------------------------------------------------------
+
+    # Sort from largest to smallest so the largest bars are drawn first
+    #      and the smallest bars are drawn last (on top).
+    def get_value(row):
+        return row["oi"] if row["metric"] == "oi" else row["volume"]
+    filtered_lines = sorted(filtered_lines, key=get_value, reverse=True)
 
     #this is actually fire they have it lol
     fig = go.Figure()
@@ -151,17 +159,17 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 
     # prevent overlapwith tiny price offset
     offset_map = {
-       ("call","oi"):     0.1,
-       ("put","oi"):     -0.1,
+       ("call","oi"):     0.15,
+       ("put","oi"):     -0.15,
        ("call","volume"): 0.05,
-       ("put","volume"): -0.05,
+       ("put","volume"): -0.05
     }
 
     # anchro each bar near the right side (max_date),
     # then extend left by bar_length_days, clamping at 90% of chart width.
     day_offset = 0.0
 
-    for entry in filtered_lines:  # changed to filtered_lines
+    for entry in filtered_lines:
         typ    = entry["type"]       # "call" or "put"
         strike = entry["strike"]
         oi     = entry["oi"]
@@ -173,7 +181,6 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
         elif (typ == "put"  and metric=="oi"):       color = "red"
         elif (typ == "call" and metric=="volume"):   color = "orange"
         else:                                        color = "blue"
-
 
         raw_value = oi if metric == "oi" else vol
         scale = unify_normalize(raw_value)
@@ -258,7 +265,6 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
         xaxis_rangeslider_visible=False,
         height=800
     )
-
 
     fig.update_layout(
         title=(

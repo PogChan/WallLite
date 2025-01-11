@@ -283,7 +283,7 @@ def main():
                     """
                 )
                 atm_mispricing = compare_atm_mispricing(data, selected_expiration, stock_price)
-            
+
                 # st.write(atm_mispricing)
                 st.markdown(f"**ATM Strike:** {atm_mispricing['atm_strike']}")
                 st.markdown(
@@ -308,7 +308,12 @@ def main():
                 if top_n != st.session_state.top_n:
                     st.session_state.top_n = top_n
 
-                plotChartOI(symbol, data, selected_expiration, top_n=top_n)
+                display_choice = st.selectbox(
+                    "Show Which Bars?",
+                    ["Both Calls & Puts", "Calls Only", "Puts Only"]
+                )
+
+                plotChartOI(symbol, data, selected_expiration,display_choice, top_n=top_n)
 
                 st.markdown("##### Top 5 Call Heatmap Strikes")
                 call_heatmap_data = pd.DataFrame(

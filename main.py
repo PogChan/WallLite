@@ -282,7 +282,7 @@ def main():
                     """
                 )
                 atm_mispricing = compare_atm_mispricing(data, selected_expiration, stock_price)
-            
+
                 # st.write(atm_mispricing)
                 st.markdown(f"**ATM Strike:** {atm_mispricing['atm_strike']}")
                 st.markdown(
@@ -306,6 +306,8 @@ def main():
 
                 if top_n != st.session_state.top_n:
                     st.session_state.top_n = top_n
+
+
 
                 plotChartOI(symbol, data, selected_expiration, top_n=top_n)
 

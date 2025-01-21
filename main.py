@@ -218,9 +218,28 @@ def main():
     tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
 
     # fridays selection date
-    expiration_dates = get_next_fridays() + ['Custom Date']
+    expiration_dates_set = set()
+
+    # Loop through tickers to fetch expiration dates
+    for symbol in tickers:
+        try:
+            ticker = yf.Ticker(symbol)
+            expiration_dates = ticker.options
+            if expiration_dates:
+                expiration_dates_set.update(expiration_dates)
+        except Exception as e:
+            st.warning(f"Unable to fetch expiration dates for {symbol}: {e}")
+
+    # Convert set to sorted list for dropdown
+    expiration_dates_list = sorted(expiration_dates_set)
+
+    # Streamlit dropdown for expiration dates
     expTopCols = st.columns(2)
-    selected_expiration = expTopCols[0].selectbox("📅 Select an Options Expiration Date:", expiration_dates)
+    selected_expiration = expTopCols[0].selectbox(
+        "📅 Select an Options Expiration Date:",
+        expiration_dates_list + ['Custom Date']
+    )
+
     top_n = expTopCols[1].number_input('🔝How many top strikes to display?', min_value=1, value=5)
 
     if selected_expiration == 'Custom Date':

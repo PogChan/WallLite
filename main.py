@@ -403,5 +403,82 @@ def main():
         else:
             st.write("⚠️ No data available for the selected tickers and expiration.")
 
+from py_vollib.black_scholes.implied_volatility import implied_volatility
+
+def fetch_risk_free_rate():
+    """
+    Fetches the risk-free rate (13-week or 10-year Treasury yield) from Yahoo Finance.
+    Tries to retrieve the latest available data over the past 5 days.
+
+    Returns:
+        float: Risk-free rate as a decimal.
+    """
+    try:
+        # Fetch 13-week Treasury yield
+        treasury_data = yf.Ticker("^IRX")
+        recent_data = treasury_data.history(period="5d")["Close"].dropna()
+        if not recent_data.empty:
+            rate = recent_data.iloc[-1] / 100  # Convert to decimal
+            print(f"Fetched 13-week Treasury yield: {rate:.2%}")
+            return rate
+    except Exception as e:
+        print(f"Error fetching ^IRX: {e}")
+
+    try:
+        # Fallback to 10-year Treasury yield
+        treasury_data = yf.Ticker("^TNX")
+        recent_data = treasury_data.history(period="5d")["Close"].dropna()
+        if not recent_data.empty:
+            rate = recent_data.iloc[-1] / 100  # Convert to decimal
+            print(f"Fetched 10-year Treasury yield: {rate:.2%}")
+            return rate
+    except Exception as e:
+        print(f"Error fetching ^TNX: {e}")
+
+    # Default risk-free rate
+    default_rate = 0.01
+    print(f"Using default risk-free rate: {default_rate:.2%}")
+    return default_rate
+
+
+def calculate_iv(underlying_price, strike_price, time_to_expiration, bid_price, ask_price, option_type='c'):
+    """
+    Calculates implied volatility for an option.
+
+    Parameters:
+        underlying_price (float): Current price of the underlying asset.
+        strike_price (float): Strike price of the option.
+        time_to_expiration (float): Time to expiration in years.
+        bid_price (float): Bid price of the option.
+        ask_price (float): Ask price of the option.
+        option_type (str): 'c' for call, 'p' for put.
+
+    Returns:
+        float: Implied volatility as a percentage.
+    """
+    market_price = (bid_price + ask_price) / 2
+    risk_free_rate = fetch_risk_free_rate()
+    print(f"Market Price: ${market_price:.2f}, Risk-Free Rate: {risk_free_rate:.2%}")
+    try:
+        iv = implied_volatility(market_price, underlying_price, strike_price, time_to_expiration, risk_free_rate, option_type)
+        return iv * 100  # Convert to percentage
+    except Exception as e:
+        print(f"Error calculating implied volatility: {e}")
+        return None
+
 if __name__ == "__main__":
     main()
+
+    # Example usage
+    underlying_price = 229.98  # Current price of the underlying
+    strike_price = 230  # Option strike price
+    time_to_expiration = 10 / 365  # Time to expiration in years
+    bid_price = 2.76  # Bid price of the option
+    ask_price = 2.85  # Ask price of the option
+
+    iv = calculate_iv(underlying_price, strike_price, time_to_expiration, bid_price, ask_price, option_type='c')
+    if iv is not None:
+        print(f"Implied Volatility: {iv:.2f}%")
+    else:
+        print("Failed to calculate implied volatility.")
+         

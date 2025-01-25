@@ -159,8 +159,8 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 
     # prevent overlapwith tiny price offset
     offset_map = {
-       ("call","oi"):     0.5,
-       ("put","oi"):     -0.5,
+       ("call","oi"):     0.03,
+       ("put","oi"):     -0.03,
        ("call","volume"): 0.05,
        ("put","volume"): -0.05
     }

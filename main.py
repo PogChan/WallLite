@@ -26,6 +26,8 @@ user_agents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
 ]
 
+
+@st.cache_data(ttl=60*10)
 def get_options_chain(symbol, expiration):
     """
     Retrieves options chain data for a single expiration date using yfinance.
@@ -111,6 +113,55 @@ def get_options_chain(symbol, expiration):
     data["options"][expiration] = {"c": c_dict, "p": p_dict}
 
     return data
+@st.cache_data(ttl=60*10)
+def get_options_chains(symbols, expiration):
+    result = {}
+
+    # Create multi-ticker object once
+    all_tickers = yf.Tickers(" ".join(symbols))
+
+    for symbol in symbols:
+        try:
+            ticker = all_tickers.tickers[symbol]
+
+            # Expiration check
+            if expiration not in ticker.options:
+                continue
+
+            # Batch fetch options data
+            chain = ticker.option_chain(expiration)
+
+            # Vectorized processing with proper tuple access
+            def process_chain(df):
+                processed = {}
+                for row in df.itertuples():
+                    strike_str = f"{row.strike:.2f}"
+                    processed[strike_str] = {
+                        "b": float(row.bid) if not pd.isna(row.bid) else 0.0,
+                        "a": float(row.ask) if not pd.isna(row.ask) else 0.0,
+                        "oi": float(row.openInterest) if not pd.isna(row.openInterest) else 0.0,
+                        "v": float(row.volume) if not pd.isna(row.volume) else 0.0,
+                        "iv": float(row.impliedVolatility) if not pd.isna(row.impliedVolatility) else 0.0,
+                        "itm": bool(row.inTheMoney),
+                        "chg": float(row.change) if not pd.isna(row.change) else 0.0,
+                        "pctChg": float(row.percentChange) if not pd.isna(row.percentChange) else 0.0,
+                        "lp": float(row.lastPrice) if not pd.isna(row.lastPrice) else 0.0
+                    }
+                return processed
+
+            result[symbol] = {
+                "options": {
+                    expiration: {
+                        "c": process_chain(chain.calls),
+                        "p": process_chain(chain.puts)
+                    }
+                }
+            }
+
+        except Exception as e:
+            st.error(f"Error processing {symbol}: {e}")
+
+    return result
 
 # find stock price currnet
 def get_stock_price(symbol):
@@ -267,7 +318,7 @@ def compare_atm_mispricing(data, exp_date, stock_price):
     }
 
 def main():
-    st.title("✨ EFI Imbalance Screener")
+    st.title("✨ EFI Imbalance Screener v2.0")
 
     st.markdown(
         """
@@ -336,7 +387,9 @@ def main():
         st.markdown("### 📈 Analyzing Options Data...")
         results = []
 
-        for symbol in tickers:
+        chains = get_options_chains(tickers, selected_expiration)
+
+        for symbol, data in chains.items():
             with st.spinner(f"🔍 Analyzing {symbol}..."):
                 # stock price fetch yfinance
                 stock_price = get_stock_price(symbol)
@@ -345,7 +398,6 @@ def main():
                     continue
 
                 #options chain fetch
-                data = get_options_chain(symbol, selected_expiration)
                 if not data:
                     st.write(f"⚠️ No valid options data for {symbol}.")
                     continue
@@ -358,8 +410,6 @@ def main():
                 call_premium = result["call_premium"]
                 put_premium = result["put_premium"]
                 put_call_ratio = put_premium / call_premium if call_premium > 0 else float("inf")
-
-
 
                 # displays
                 st.markdown(f"#### **{symbol}**")

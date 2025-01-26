@@ -194,6 +194,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 
         # anchor each bar near the right side, shifting each line horizontally
         x1 = max_date - timedelta(days=day_offset)
+
         x0 = x1 - timedelta(days=bar_length_days)
 
         # tiny offset in price so lines at same strike won't overlap

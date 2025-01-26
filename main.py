@@ -11,7 +11,8 @@ from tickers import *
 import time
 from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor
-from OIChart import *
+from indicators import *
+import numpy as np
 
 load_dotenv()
 
@@ -188,6 +189,9 @@ def analyze_options_chain(data, exp_date, stock_price):
         "call_heatmap": call_heatmap,
         "put_heatmap": put_heatmap,
     }
+
+
+
 def compare_atm_mispricing(data, exp_date, stock_price):
     """
     Finds the ATM strike (closest to current stock_price),
@@ -234,6 +238,9 @@ def compare_atm_mispricing(data, exp_date, stock_price):
     call_info = calls_dict.get(atm_strike_str, {})
     put_info  = puts_dict.get(atm_strike_str, {})
 
+    call_iv = call_info.get("iv", 0)
+    put_iv = put_info.get("iv", 0)
+
     #compute the mid-price for each if possible
     def get_mid_price(info):
         # we need bid/ask
@@ -253,7 +260,10 @@ def compare_atm_mispricing(data, exp_date, stock_price):
         "put_mid": put_mid,
         "difference": difference,
         "precentage": percentage,
-        "direction": "Bearish" if percentage > 20 else "Bullish" if percentage < -20 else "Neutral"
+        "direction": "Bearish" if percentage > 20 else "Bullish" if percentage < -20 else "Neutral",
+        "call_iv": call_iv,
+        "put_iv": put_iv,
+        "avg_iv": (call_iv + put_iv) / 2 if call_iv and put_iv else 0
     }
 
 def main():
@@ -364,12 +374,16 @@ def main():
                 atm_mispricing = compare_atm_mispricing(data, selected_expiration, stock_price)
 
                 # st.write(atm_mispricing)
+                avg_iv = atm_mispricing.get("avg_iv", 0) * 100
+
+
                 st.markdown(f"**ATM Strike:** {atm_mispricing['atm_strike']}")
                 st.markdown(
                     f"""
                     - {"🐻" if atm_mispricing['direction'] == 'Bearish' else "🐂" if atm_mispricing['direction'] == 'Bullish' else "😐"} Potential {atm_mispricing['direction']} Mispricing
                     - {atm_mispricing['call_mid']:.2f} ATM Call - {atm_mispricing['put_mid']:.2f} ATM Put
                     - Difference: {atm_mispricing['difference']:.2f} ({atm_mispricing['precentage']:.2f}%)
+                    - ATM IV: {avg_iv:.2f}%
                     """)
 
                 results.append({
@@ -388,8 +402,12 @@ def main():
                     st.session_state.top_n = top_n
 
 
-
                 plotChartOI(symbol, data, selected_expiration, top_n=top_n)
+
+                plot_volatility_comparison(symbol, avg_iv)
+
+
+
 
                 st.markdown("##### Top 5 Call Heatmap Strikes")
                 call_heatmap_data = pd.DataFrame(

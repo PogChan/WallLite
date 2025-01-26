@@ -2,7 +2,8 @@ import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
 from datetime import timedelta
-
+import numpy as np
+import pandas as pd
 def plotChartOI(symbol, data, exp_date, top_n=5):
     #Download 1 month of data its free
     df = yf.download(symbol, period="1mo", interval="1d")
@@ -278,3 +279,70 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
+
+def calculate_historical_volatility(symbol, window=20):
+    """
+    Calculate n-day historical volatility (annualized)
+    Returns: Series with dates and volatility values
+    """
+    try:
+        # Get enough data to account for the rolling window
+        df = yf.download(symbol, period=f"2y", interval="1d")
+        if df.empty:
+            st.warning(f"No price data for {symbol}.")
+            return
+
+        # Flatten columns if multi-level from yfinance
+        if hasattr(df.columns, "droplevel") and len(df.columns.levels) > 1:
+            df.columns = df.columns.droplevel(-1)
+
+        returns = np.log(df['Close']).diff()
+        hv = returns.rolling(window=window).std() * np.sqrt(252) * 100  # Annualized as percentage
+        return hv.dropna()
+    except Exception as e:
+        st.error(f"Historical Volatility Error: {e}")
+        return pd.Series()
+
+
+def plot_volatility_comparison(symbol, avg_iv):
+    """
+    Plots historical volatility vs average IV for selected expiration
+    """
+    hv_series = calculate_historical_volatility(symbol)
+
+    # Plot volatility comparison
+    if hv_series.empty:
+        st.warning("Could not calculate historical volatility")
+        return
+
+    fig = go.Figure()
+
+    # Historical Volatility Line
+    fig.add_trace(go.Scatter(
+        x=hv_series.index,
+        y=hv_series,
+        mode='lines',
+        name='20D Historical Volatility',
+        line=dict(color='#1f77b4', width=2)
+    ))
+
+    # Average IV Horizontal Line
+    fig.add_trace(go.Scatter(
+        x=[hv_series.index[0], hv_series.index[-1]],
+        y=[avg_iv, avg_iv],
+        mode='lines',
+        name=f'ATM IV (Avg)',
+        line=dict(color='#ff7f0e', width=2, dash='dash')
+    ))
+
+    fig.update_layout(
+        title=f"{symbol} Volatility Comparison",
+        yaxis_title="Volatility (%)",
+        hovermode="x unified",
+        showlegend=True,
+        height=400
+    )
+    st.plotly_chart(fig,
+                use_container_width=True)
+    return fig

@@ -126,6 +126,7 @@ def get_options_chains(symbols, expiration):
 
             # Expiration check
             if expiration not in ticker.options:
+                result[symbol] = None
                 continue
 
             # Batch fetch options data
@@ -160,6 +161,7 @@ def get_options_chains(symbols, expiration):
 
         except Exception as e:
             st.error(f"Error processing {symbol}: {e}")
+            result[symbol] = None
 
     return result
 
@@ -394,12 +396,12 @@ def main():
                 # stock price fetch yfinance
                 stock_price = get_stock_price(symbol)
                 if stock_price is None:
-                    st.write(f"⚠️ Skipping {symbol} due to missing stock price.")
+                    st.error(f"⚠️ Skipping {symbol} due to missing stock price.")
                     continue
 
                 #options chain fetch
                 if not data:
-                    st.write(f"⚠️ No valid options data for {symbol}.")
+                    st.error(f"⚠️ No valid options data for {symbol} {selected_expiration}.")
                     continue
 
 

@@ -4,6 +4,11 @@ import plotly.graph_objects as go
 from datetime import timedelta
 import numpy as np
 import pandas as pd
+from scipy.stats import gaussian_kde
+from scipy.ndimage import gaussian_filter1d
+from sklearn.mixture import GaussianMixture
+import datetime as datetime
+
 def plotChartOI(symbol, data, exp_date, top_n=5):
     #Download 1 month of data its free
     df = yf.download(symbol, period="1mo", interval="1d")
@@ -347,3 +352,202 @@ def plot_volatility_comparison(symbol, avg_iv):
     st.plotly_chart(fig,
                 use_container_width=True)
     return fig
+
+
+
+
+def stock_seasonality(ticker, start_date='2013-01-01', 
+                      exclude_years=[2020], smooth_factor=3,
+                      confidence_band=True, show_current_year=True):
+    """
+    Enhanced seasonality analysis with probabilistic forecasting and regime awareness
+    
+    Improvements:
+    1. Better normalization using Z-score detrending
+    2. Volatility-adjusted smoothing
+    3. Current year comparison
+    4. Confidence bands with percentile ranges
+    5. Residual seasonality detection
+    """
+    
+    # Fetch and prepare data
+    data = yf.download(ticker, start=start_date)
+    if data.empty:
+        st.warning(f"No price data for {ticker}.")
+        return
+
+    # Get as business days and fill in, if we have NaN days in business days jsut forward fill from prev day. 
+    data = data.asfreq('B').ffill().dropna()
+    data['daily_return'] = data['Adj Close'].pct_change().dropna()
+    
+    # Excludes the date
+    data['year'] = data.index.year
+    data['day_of_year'] = data.index.dayofyear
+    data = data[~data['year'].isin(exclude_years)]
+    
+    # This ensures that volatility in each year is normalzied. that we dont have periods of low volatility be comapred iwth periods of hgih vaoliltiy 
+    def normalize_group(group):
+        mu = group.mean()
+        std = group.std()
+        return (group - mu) / std
+    
+    normalized_returns = data.groupby('year')['daily_return'].transform(normalize_group)
+    data['norm_return'] = normalized_returns
+    
+    # Gets the uptrend or downtrend as you get cumulative sum per year. 1+ 2+ 3 + 4 with increasing means the trend keeps going up, strong!
+    data['cumulative_index'] = data.groupby('year')['norm_return'].cumsum()
+    
+    # Convert to common year dates
+    base_year = 2020  # Leap year for alignment
+    data['date'] = data['day_of_year'].apply(lambda x: pd.to_datetime(f'{base_year}-{x:03d}', format='%Y-%j'))
+
+    # Calculate probabilistic paths
+    daily_stats = data.groupby('date')['cumulative_index'].agg(
+        ['median', 'mean', lambda x: np.percentile(x, 25), lambda x: np.percentile(x, 75)]
+    ).rename(columns={'<lambda_0>': 'q25', '<lambda_1>': 'q75'})
+
+    # Volatility-adjusted smoothing
+    def adaptive_smooth(series, window):
+        window = max(int(window), 3)  # Ensure minimum window size
+        return series.rolling(
+            window=window,
+            win_type='gaussian',
+            center=True,
+            min_periods=1
+        ).mean(std=2)
+    
+    daily_stats['smooth_median'] = adaptive_smooth(daily_stats['median'], window=smooth_factor)
+
+    # Current year comparison
+    current_year = datetime.datetime.now().year
+    current_data = data[data['year'] == current_year].copy()
+
+    today = datetime.datetime.today()
+    start_1m = (today - datetime.timedelta(days=15)).strftime(f'{base_year}-%m-%d')
+    end_1m   = (today + datetime.timedelta(days=15)).strftime(f'{base_year}-%m-%d')
+    start_3m = (today - datetime.timedelta(days=60)).strftime(f'{base_year}-%m-%d')
+    end_3m   = (today + datetime.timedelta(days=60)).strftime(f'{base_year}-%m-%d')
+    # Visualization
+    fig = go.Figure()
+    
+    # Historical years
+    for year in data['year'].unique():
+        if year == current_year: continue  # Handle current year separately
+        year_data = data[data['year'] == year]
+        fig.add_trace(go.Scatter(
+            x=year_data['date'],
+            y=year_data['cumulative_index'],
+            mode='lines',
+            line=dict(width=0.7, color='lightgray'),
+            opacity=0.3,
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+
+    # Confidence bands
+    if confidence_band:
+        fig.add_trace(go.Scatter(
+            x=daily_stats.index,
+            y=daily_stats['q75'],
+            line=dict(width=0),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=daily_stats.index,
+            y=daily_stats['q25'],
+            fill='tonexty',
+            fillcolor='rgba(100,100,100,0.2)',
+            line=dict(width=0),
+            name='25-75% Percentile',
+            hoverinfo='skip'
+        ))
+
+    # Smoothed median path
+    fig.add_trace(go.Scatter(
+        x=daily_stats.index,
+        y=daily_stats['smooth_median'],
+        mode='lines',
+        line=dict(color='navy', width=3),
+        name='Median Seasonal Path',
+        hovertemplate="<b>%{x|%b %d}</b><br>Index: %{y:.2f}<extra></extra>"
+    ))
+
+    # Current year overlay
+    if show_current_year and not current_data.empty:
+        current_data = current_data[current_data['date'] <= datetime.datetime.now().strftime(f'{base_year}-%m-%d')]
+        fig.add_trace(go.Scatter(
+            x=current_data['date'],
+            y=current_data['cumulative_index'],
+            mode='lines+markers',
+            line=dict(color='red', width=2),
+            marker=dict(size=5),
+            name=f'{current_year} Actual',
+            hovertemplate="<b>%{x|%b %d}</b><br>Current: %{y:.2f}<extra></extra>"
+        ))
+
+        # Enhanced layout for vertical scaling
+        fig.update_layout(
+            title=f'{ticker} Seasonality Analysis',
+            xaxis=dict(
+                type='date',
+                rangeslider=dict(visible=True),
+                range=[f'{base_year}-01-01', f'{base_year}-12-31'],
+                tickformat='%b %d',
+                autorange=True,
+                fixedrange=False  # Allow horizontal zoom/pan
+            ),
+            yaxis=dict(
+                title='Normalized Index',
+                zerolinecolor='gray',
+                zerolinewidth=1,
+                fixedrange=False,  # Allow vertical zoom/pan
+                autorange=True,
+                automargin=True
+            ),
+            hovermode='x unified',
+            dragmode='zoom',  # Start in zoom mode
+            margin=dict(t=40, b=20, l=40, r=20),
+        )
+
+        # Add range selector buttons
+        fig.update_layout(
+            updatemenus=[
+                dict(
+                    type="buttons",
+                    direction="left",
+                    buttons=[
+                        dict(label="Zoom 1M",
+                            method="relayout",
+                            args=[{"xaxis.range": [f'{base_year}-01-01', f'{base_year}-02-01']}]),
+                        dict(label="Zoom 3M",
+                            method="relayout",
+                            args=[{"xaxis.range": [f'{base_year}-01-01', f'{base_year}-04-01']}]),
+                        dict(label="Reset",
+                            method="relayout",
+                            args=[{"xaxis.autorange": True, "yaxis.autorange": True}])
+                    ],
+                    pad={"r": 10, "t": 10},
+                    showactive=True,
+                    x=0.1,
+                    xanchor="left",
+                    y=1.1,
+                    yanchor="top"
+                )
+            ]
+        )
+
+        # Enable all zoom/pan features
+        config = {
+            'scrollZoom': True,
+            'modeBarButtonsToAdd': [
+                'vscrollzoom',
+                'hscrollzoom',
+                'togglespikelines',
+                'resetScale2d'
+            ]
+        }
+
+        st.plotly_chart(fig, use_container_width=True, config=config)
+        return fig

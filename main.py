@@ -177,7 +177,7 @@ def get_stock_price(symbol):
 
 def get_next_fridays(n=10):
     """Get the next `num_fridays` Fridays starting from today."""
-    today = datetime.now()
+    today = datetime.datetime.now()
     fridays = []
     # find el next fridiossss
     days_until_next_friday = (4 - today.weekday() + 7) % 7
@@ -371,7 +371,7 @@ def main():
 
     if selected_expiration == 'Custom Date':
         custom_date = st.date_input('📆 Select a custom date'
-                                    , datetime.now() + timedelta(days=7))
+                                    , datetime.datetime.now() + timedelta(days=7))
         selected_expiration = custom_date.strftime('%Y-%m-%d')
 
     if "runAnalysis" not in st.session_state:
@@ -458,7 +458,7 @@ def main():
 
                 plot_volatility_comparison(symbol, avg_iv)
 
-
+                stock_seasonality(symbol)
 
 
                 st.markdown("##### Top 5 Call Heatmap Strikes")

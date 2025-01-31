@@ -459,6 +459,7 @@ def main():
                 plot_volatility_comparison(symbol, avg_iv)
 
                 stock_seasonality(symbol)
+                stock_seasonality2(symbol)
 
 
                 st.markdown("##### Top 5 Call Heatmap Strikes")

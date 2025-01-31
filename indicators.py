@@ -7,6 +7,11 @@ import pandas as pd
 from scipy.stats import gaussian_kde
 from scipy.ndimage import gaussian_filter1d
 from sklearn.mixture import GaussianMixture
+from scipy.fftpack import fft, ifft
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from hmmlearn.hmm import GaussianHMM
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
 import datetime as datetime
 
 def plotChartOI(symbol, data, exp_date, top_n=5):
@@ -579,3 +584,158 @@ def stock_seasonality(ticker, start_date='2013-01-01',
 
         st.plotly_chart(fig, use_container_width=True, config=config)
         return fig
+
+
+def enhanced_seasonality_prediction(data, base_year=2020):
+    """Core prediction engine with robust error handling"""
+    try:
+        # 1. Fourier Transform
+        def add_fourier_terms(df):
+            for i in [1, 2, 3]:  # Optimal for daily financial data
+                df[f'fourier_sin_{i}'] = np.sin(2 * np.pi * i * df['day_of_year']/252)
+                df[f'fourier_cos_{i}'] = np.cos(2 * np.pi * i * df['day_of_year']/252)
+            return df
+        
+        data = add_fourier_terms(data)
+
+        # 2. Regime Detection with HMM
+        with np.errstate(all='ignore'):
+            model = GaussianHMM(n_components=3, covariance_type="diag", n_iter=100)
+            returns = data['daily_return'].fillna(0).values.reshape(-1, 1)
+            model.fit(returns)
+            data['regime'] = model.predict(returns)
+
+        # 3. Macro Weighting (Simplified)
+        def get_year_weights(current_year):
+            try:
+                rates = yf.download('^TNX', period="max")['Adj Close']
+                return {year: 1/(1+abs(rates[str(year)].mean()-rates[str(current_year)].mean())) 
+                        for year in data['year'].unique() if year != current_year}
+            except:
+                return {year: 1 for year in data['year'].unique() if year != current_year}
+
+        weights = get_year_weights(datetime.datetime.now().year)
+        total = sum(weights.values()) or 1
+        weights = {k: v/total for k, v in weights.items()}
+
+        # 4. Hybrid Prediction Model
+        predictions = []
+        for year, weight in weights.items():
+            year_data = data[data['year'] == year]
+            if len(year_data) < 10: continue  # Skip insufficient data
+                
+            # SARIMA Baseline
+            try:
+                data.loc[data['year'] == year, 'cumulative_index'] = data.loc[data['year'] == year, 'cumulative_index'].diff().fillna(0)
+                exog_features = year_data[['fourier_sin_1', 'fourier_cos_1']].iloc[:len(year_data['cumulative_index'])]
+                model = SARIMAX(year_data['cumulative_index'], exog=exog_features, order=(1,1,1)).fit(disp=0)
+                pred = model.predict(start=0, end=len(year_data)-1, exog=exog_features)
+            except:
+                pred = year_data['cumulative_index'].rolling(5, min_periods=1).mean()
+                
+            # Random Forest Residuals
+            residuals = year_data['cumulative_index'] - pred
+            X = year_data[['fourier_sin_1', 'fourier_cos_1', 'regime']]
+            rf = RandomForestRegressor(n_estimators=50).fit(X, residuals)
+            predictions.append((pred[:len(X)] + rf.predict(X)) * weight)
+
+        # Combine predictions
+        if predictions:
+            min_len = min(len(p) for p in predictions)
+            data['enhanced'] = np.sum([p[:min_len] for p in predictions], axis=0)
+        else:
+            data['enhanced'] = data['cumulative_index']
+            
+    except Exception as e:
+        st.error(f"Enhanced prediction failed: {str(e)}")
+        data['enhanced'] = data['cumulative_index']
+        
+    return data
+
+def stock_seasonality2(ticker, start_date='2013-01-01', smooth_factor=3):
+    """Main seasonality analysis function"""
+    # Data Loading & Preparation
+    data = yf.download(ticker, start=start_date)
+    if data.empty:
+        st.warning("No data available")
+        return
+    
+    data = data.asfreq('B').ffill()
+    data['daily_return'] = data['Adj Close'].pct_change()
+    data = data.dropna()
+    
+    # Normalization
+    data['year'] = data.index.year
+    data['day_of_year'] = data.index.dayofyear
+    
+    data['norm_return'] = data.groupby('year')['daily_return'].transform(
+        lambda x: (x - x.mean())/x.std()
+    )
+    data['cumulative_index'] = data.groupby('year')['norm_return'].cumsum()
+    
+    # Enhanced Prediction
+    data = enhanced_seasonality_prediction(data)
+    
+    # Visualization Setup
+    base_year = 2020
+    data['date'] = data['day_of_year'].apply(
+        lambda x: pd.to_datetime(f'{base_year}-{x:03d}', format='%Y-%j')
+    )
+    
+    # Create Plot
+    fig = go.Figure()
+    
+    # Historical Traces
+    for year in data['year'].unique():
+        yd = data[data['year'] == year]
+        fig.add_trace(go.Scatter(
+            x=yd['date'], y=yd['enhanced'],
+            line=dict(color='lightgray', width=0.5),
+            hoverinfo='skip',
+            showlegend=False
+        ))
+    
+    # Current Year
+    current_year = datetime.datetime.now().year
+    current = data[data['year'] == current_year]
+    if not current.empty:
+        fig.add_trace(go.Scatter(
+            x=current['date'], y=current['cumulative_index'],
+            line=dict(color='red', width=2),
+            name='Current Year'
+        ))
+    
+    # Prediction Line
+    smooth = data.groupby('date')['enhanced'].median().rolling(
+        window=max(smooth_factor,3), 
+        win_type='gaussian',
+        center=True
+    ).mean(std=2)
+    
+    fig.add_trace(go.Scatter(
+        x=smooth.index, y=smooth.values,
+        line=dict(color='navy', width=3),
+        name='Seasonal Forecast'
+    ))
+    
+    # Interactive Features
+    fig.update_layout(
+        title=f'{ticker} Seasonality Analysis',
+        xaxis=dict(
+            type='date',
+            rangeslider=dict(visible=True),
+            rangeselector=dict(
+                buttons=list([
+                    dict(count=1, label="1M", step="month"),
+                    dict(count=3, label="3M", step="month"),
+                    dict(step="all")
+                ])
+            )
+        ),
+        yaxis=dict(title='Normalized Performance'),
+        hovermode='x',
+        dragmode='pan',
+        height=600
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)

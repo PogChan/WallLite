@@ -487,6 +487,8 @@ def stock_seasonality(ticker, start_date='2013-01-01',
             hovertemplate="<b>%{x|%b %d}</b><br>Current: %{y:.2f}<extra></extra>"
         ))
 
+
+        
         # Enhanced layout for vertical scaling
         fig.update_layout(
             title=f'{ticker} Seasonality Analysis',
@@ -507,10 +509,36 @@ def stock_seasonality(ticker, start_date='2013-01-01',
                 automargin=True
             ),
             hovermode='x unified',
-            dragmode='zoom',  # Start in zoom mode
+            dragmode='pan',  # Start in zoom mode
             margin=dict(t=40, b=20, l=40, r=20),
         )
 
+
+        today = datetime.datetime.now()
+        current_day = min(today.day, 30)  # Handle month-end differences
+        current_month = today.month
+        current_base_date = pd.Timestamp(f"{base_year}-{current_month:02d}-{current_day:02d}")
+        
+        # Calculate dynamic date ranges
+        def get_date_range(days_before, days_after):
+            start = (current_base_date - pd.DateOffset(days=days_before)).strftime('%Y-%m-%d')
+            end = (current_base_date + pd.DateOffset(days=days_after)).strftime('%Y-%m-%d')
+            
+            # Constrain to base year
+            start = max(start, f"{base_year}-01-01")
+            end = min(end, f"{base_year}-12-31")
+            return start, end
+
+        def get_zoom_args(days_before, days_after):
+            start, end = get_date_range(days_before, days_after)
+            y_min = daily_stats.loc[start:end, 'smooth_median'].min() * 0.95
+            y_max = daily_stats.loc[start:end, 'smooth_median'].max() * 1.05
+            return {
+                "xaxis.range": [start, end],
+                "yaxis.range": [y_min, y_max],
+                "xaxis.rangeslider.range": [f"{base_year}-01-01", f"{base_year}-12-31"]
+            }
+        
         # Add range selector buttons
         fig.update_layout(
             updatemenus=[
@@ -518,20 +546,20 @@ def stock_seasonality(ticker, start_date='2013-01-01',
                     type="buttons",
                     direction="left",
                     buttons=[
-                        dict(label="Zoom 1M",
+                        dict(label="1M",
                             method="relayout",
-                            args=[{"xaxis.range": [f'{base_year}-01-01', f'{base_year}-02-01']}]),
-                        dict(label="Zoom 3M",
+                            args=[get_zoom_args(15, 15)]),
+                        dict(label="3M",
                             method="relayout",
-                            args=[{"xaxis.range": [f'{base_year}-01-01', f'{base_year}-04-01']}]),
+                            args=[get_zoom_args(45, 45)]),
                         dict(label="Reset",
                             method="relayout",
                             args=[{"xaxis.autorange": True, "yaxis.autorange": True}])
                     ],
                     pad={"r": 10, "t": 10},
                     showactive=True,
-                    x=0.1,
-                    xanchor="left",
+                    x=0.55,
+                    xanchor="center",
                     y=1.1,
                     yanchor="top"
                 )

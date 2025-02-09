@@ -46,7 +46,7 @@ def get_options_chain(symbol):
     else:
         st.error(f"Failed to fetch options chain for {symbol}. Status code: {response.status_code}")
         return None
-    
+
 # find stock price currnet
 def get_stock_price(symbol):
     ticker = yf.Ticker(symbol)
@@ -257,6 +257,14 @@ def main():
         st.session_state.runAnalysis = True
 
     st.button("🚀 Run Analysis", on_click=run_analysis_callback)
+
+    if st.button("PC Check"):
+        for symbol in ['SPY', 'QQQ', 'IWM', 'DIA']:
+            data = get_options_chain(symbol)
+            if not data:
+                st.write(f"⚠️ No valid options data for {symbol}.")
+                continue
+            pc_check(symbol, data, top_n)
 
     if st.session_state.runAnalysis:
         st.markdown("### 📈 Analyzing Options Data...")

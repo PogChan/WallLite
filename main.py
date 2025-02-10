@@ -256,9 +256,10 @@ def main():
     def run_analysis_callback():
         st.session_state.runAnalysis = True
 
-    st.button("🚀 Run Analysis", on_click=run_analysis_callback)
-
-    if st.button("PC Check"):
+    runButts = st.columns(2)
+    runButts[0].button("🚀 Run Analysis", on_click=run_analysis_callback)
+    
+    if runButts[1].button("PC Check"):
         for symbol in ['SPY', 'QQQ', 'IWM', 'DIA']:
             data = get_options_chain(symbol)
             if not data:

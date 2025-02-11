@@ -251,7 +251,7 @@ def main():
         st.session_state.runAnalysis = False
 
     if "top_n" not in st.session_state:
-        st.session_state.top_n = 5
+        st.session_state.top_n = 8
 
     def run_analysis_callback():
         st.session_state.runAnalysis = True
@@ -334,7 +334,8 @@ def main():
 
 
 
-                plotChartOI(symbol, data, selected_expiration, top_n=top_n)
+                # plotChartOI(symbol, data, selected_expiration, top_n=top_n)
+                plotAggregateOI(symbol, data, top_n, selected_expiration)
 
                 st.markdown("##### Top 5 Call Heatmap Strikes")
                 call_heatmap_data = pd.DataFrame(

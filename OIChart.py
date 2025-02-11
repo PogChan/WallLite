@@ -1,7 +1,9 @@
 import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
-from datetime import timedelta
+from datetime import timedelta, datetime
+import calendar
+
 
 def plotChartOI(symbol, data, exp_date, top_n=5):
     #Download 1 month of data its free
@@ -526,6 +528,334 @@ def pc_check(symbol, data, top_n=5):
     # Layout settings
     fig.update_layout(
         title=f"{symbol.upper()} - Aggregate Volume Across Expirations",
+        xaxis_title="Date",
+        yaxis_title="Price (Strike)",
+        xaxis_rangeslider_visible=False,
+        height=800
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ---------------------------------------------------------------------------
+# Helper function: Computes next month’s third Friday (as a string “YYYY-MM-DD”)
+# ---------------------------------------------------------------------------
+def get_next_month_third_friday():
+    today = datetime.now().date()
+    # Determine next month and year
+    if today.month == 12:
+        year = today.year + 1
+        month = 1
+    else:
+        year = today.year
+        month = today.month + 1
+    cal = calendar.monthcalendar(year, month)
+    # Friday is index 4 (Monday is 0)
+    fridays = [week[4] for week in cal if week[4] != 0]
+    if len(fridays) >= 3:
+        third_friday = fridays[2]
+        return datetime(year, month, third_friday).strftime("%Y-%m-%d")
+    else:
+        return None
+
+# ---------------------------------------------------------------------------
+# New Function: Aggregated OI and Volume Chart (across multiple expirations)
+# ---------------------------------------------------------------------------
+def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
+    """
+    Plots aggregated Open Interest (OI) and Volume data across multiple expiration dates.
+    
+    For each option strike and type (call/put), data from all expirations (up to a default
+    expiration date) is aggregated. The resulting chart shows candlesticks for the underlying
+    stock and overlays line shapes representing aggregated OI (or volume) for the strike.
+    
+    Hover text for each bar displays the aggregated values along with a breakdown by expiration.
+    
+    If default_expiration is None, it defaults to the next month’s third Friday.
+    """
+    # Compute default expiration if not provided
+    if default_expiration is None:
+        default_expiration = get_next_month_third_friday()
+    
+    # Download stock price data for background candlestick chart
+    df = yf.download(symbol, period="1mo", interval="1d")
+    if df.empty:
+        st.warning(f"No price data for {symbol}.")
+        return
+    # Flatten columns if necessary
+    if hasattr(df.columns, "droplevel") and len(df.columns.levels) > 1:
+        df.columns = df.columns.droplevel(-1)
+    
+    # Parse the default expiration string into a date object
+    try:
+        default_exp_date = datetime.strptime(default_expiration, "%Y-%m-%d").date()
+    except Exception as e:
+        st.warning(f"Invalid default expiration date: {default_expiration}")
+        return
+
+    # -----------------------------------------------------------------------
+    # Aggregate options data across expiration dates (up to the default expiration)
+    # -----------------------------------------------------------------------
+    aggregated = {}
+    for exp_str, exp_data in data.get("options", {}).items():
+        try:
+            exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()
+        except Exception:
+            continue
+        # Only include expirations on or before the default expiration
+        # it should already be in time order
+        if exp_date > default_exp_date:
+            break
+
+        # Process both calls ("c") and puts ("p")
+        for opt_key, opt_type in [("c", "call"), ("p", "put")]:
+            chain = exp_data.get(opt_key, {})
+            for strike_str, info in chain.items():
+                # Ensure required keys exist
+                if not all(k in info for k in ("oi", "v", "b", "a")):
+                    continue
+                try:
+                    strike = float(strike_str)
+                except Exception:
+                    continue
+
+                oi = info.get("oi", 0)
+                vol = info.get("v", 0)
+                bid = info.get("b", 0)
+                ask = info.get("a", 0)
+                if oi <= 0:
+                    continue
+                # Compute mid-price (if valid)
+                mid_price = (bid + ask) / 2 if (bid > 0 and ask > 0) else 0
+            
+                total_val = oi * mid_price * 100
+
+                key = (opt_type, strike)
+                if key not in aggregated:
+                    aggregated[key] = {"oi": 0, "volume": 0, "totalValue": 0, "breakdown": {}}
+                aggregated[key]["oi"] += oi
+                aggregated[key]["volume"] += vol
+                aggregated[key]["totalValue"] += total_val
+                # Save the contribution from this expiration date
+                if exp_str not in aggregated[key]["breakdown"]:
+                    aggregated[key]["breakdown"][exp_str] = {"oi": 0, "volume": 0}
+                aggregated[key]["breakdown"][exp_str]["oi"] += oi
+                aggregated[key]["breakdown"][exp_str]["volume"] += vol
+
+    # Convert aggregated dictionary to a list of dictionaries for plotting
+    aggregated_list = []
+    for (opt_type, strike), values in aggregated.items():
+        aggregated_list.append({
+            "type": opt_type,
+            "strike": strike,
+            "oi": values["oi"],
+            "volume": values["volume"],
+            "totalValue": values["totalValue"],
+            "breakdown": values["breakdown"]
+        })
+    
+    # -----------------------------------------------------------------------
+    # Select top N strikes for calls and puts (by OI and by volume)
+    # -----------------------------------------------------------------------
+    top_calls_oi     = sorted([d for d in aggregated_list if d["type"] == "call"], key=lambda x: x["oi"], reverse=True)[:top_n]
+    top_calls_volume = sorted([d for d in aggregated_list if d["type"] == "call"], key=lambda x: x["volume"], reverse=True)[:top_n]
+    top_puts_oi      = sorted([d for d in aggregated_list if d["type"] == "put"],  key=lambda x: x["oi"], reverse=True)[:top_n]
+    top_puts_volume  = sorted([d for d in aggregated_list if d["type"] == "put"],  key=lambda x: x["volume"], reverse=True)[:top_n]
+    
+    # Helper: Build hover breakdown string from the breakdown dict
+    def build_hover_breakdown(breakdown):
+        lines = []
+        # Sort by expiration date (alphabetically works since YYYY-MM-DD)
+        for exp, vals in sorted(breakdown.items()):
+            lines.append(f"{exp}: OI={vals['oi']}, Vol={vals['volume']}")
+        return "<br>".join(lines)
+    
+    # Build a combined list of “lines” (each line is a bar to plot)
+    lines = []
+    for row in top_calls_oi:
+        row_copy = row.copy()
+        row_copy["metric"] = "oi"
+        row_copy["hover_breakdown"] = build_hover_breakdown(row["breakdown"])
+        lines.append(row_copy)
+    for row in top_puts_oi:
+        row_copy = row.copy()
+        row_copy["metric"] = "oi"
+        row_copy["hover_breakdown"] = build_hover_breakdown(row["breakdown"])
+        lines.append(row_copy)
+    for row in top_calls_volume:
+        row_copy = row.copy()
+        row_copy["metric"] = "volume"
+        row_copy["hover_breakdown"] = build_hover_breakdown(row["breakdown"])
+        lines.append(row_copy)
+    for row in top_puts_volume:
+        row_copy = row.copy()
+        row_copy["metric"] = "volume"
+        row_copy["hover_breakdown"] = build_hover_breakdown(row["breakdown"])
+        lines.append(row_copy)
+    
+    if not lines:
+        st.warning("No aggregated OI/Volume data found.")
+        return
+
+    # -----------------------------------------------------------------------
+    # Optionally allow filtering of bars (Calls Only, Puts Only, or Both)
+    # -----------------------------------------------------------------------
+    display_choice = st.selectbox(
+        "Show Which Bars?",
+        ["Both Calls & Puts", "Calls Only", "Puts Only"],
+        key=symbol + "_aggregate"
+    )
+    filtered_lines = []
+    for line in lines:
+        if display_choice == "Calls Only" and line["type"] != "call":
+            continue
+        elif display_choice == "Puts Only" and line["type"] != "put":
+            continue
+        filtered_lines.append(line)
+    
+    if not filtered_lines:
+        st.warning(f"No {display_choice} data found.")
+        return
+
+    # Sort the lines so that the largest bars are drawn first
+    def get_value(row):
+        return row["oi"] if row["metric"] == "oi" else row["volume"]
+    filtered_lines = sorted(filtered_lines, key=get_value, reverse=True)
+
+    # -----------------------------------------------------------------------
+    # Build the Plotly chart with a candlestick background
+    # -----------------------------------------------------------------------
+    fig = go.Figure()
+    fig.add_trace(
+        go.Candlestick(
+            x=df.index,
+            open=df["Open"],
+            high=df["High"],
+            low=df["Low"],
+            close=df["Close"],
+            name=symbol
+        )
+    )
+
+    min_date = df.index.min()
+    max_date = df.index.max()
+    total_days = (max_date - min_date).days
+    if total_days < 1:
+        total_days = 1
+
+    # Determine the scaling factor for bar lengths
+    all_vals = [2000]
+    for r in filtered_lines:
+        all_vals.append(r["oi"] if r["metric"] == "oi" else r["volume"])
+    min_val = min(all_vals) if all_vals else 0
+    max_val = max(all_vals) if all_vals else 1
+    def unify_normalize(v):
+        if max_val == min_val:
+            return 1
+        return (v - min_val) / (max_val - min_val)
+
+    # Prevent overlapping bars with small vertical offsets:
+    offset_map = {
+       ("call","oi"):     0.03,
+       ("put","oi"):     -0.03,
+       ("call","volume"): 0.05,
+       ("put","volume"): -0.05
+    }
+
+    day_offset = 0.0
+    for entry in filtered_lines:
+        typ    = entry["type"]       # "call" or "put"
+        strike = entry["strike"]
+        oi     = entry["oi"]
+        vol    = entry["volume"]
+        total_val = entry["totalValue"]
+        metric = entry["metric"]     # "oi" or "volume"
+
+        # Color mapping (consistent with your original function)
+        if   (typ == "call" and metric=="oi"):
+            color = "green"
+        elif (typ == "put"  and metric=="oi"):
+            color = "red"
+        elif (typ == "call" and metric=="volume"):
+            color = "orange"
+        else:
+            color = "blue"
+
+        raw_value = oi if metric == "oi" else vol
+        scale = unify_normalize(raw_value)
+        bar_length_days = scale * (0.5 * total_days)
+        bar_length_days = min(bar_length_days, 0.9 * total_days)
+
+        # Anchor each bar near the right side of the chart (adjusting horizontally)
+        x1 = max_date - timedelta(days=day_offset)
+        x0 = x1 - timedelta(days=bar_length_days)
+
+        # Small vertical offset to avoid overlapping at the same strike
+        y_offset = offset_map.get((typ, metric), 0.0)
+        y0 = strike + y_offset
+        y1 = strike + y_offset
+
+        # Draw the bar as a line shape
+        fig.add_shape(
+            type="line",
+            xref="x", yref="y",
+            x0=x0, x1=x1,
+            y0=y0, y1=y1,
+            line=dict(color=color, width=6),
+            opacity=0.7
+        )
+
+        # Add an invisible scatter for hover details
+        mid_time = x0 + (x1 - x0) / 2
+        hover_text = (
+            f"<b>{typ.upper()} {metric.upper()}</b><br>"
+            f"Strike: {strike}<br>"
+            f"Aggregated OI: {oi}<br>"
+            f"Aggregated Volume: {vol}<br>"
+            f"Total Premium: ${total_val:,.0f}<br>"
+            f"Breakdown:<br>{entry['hover_breakdown']}"
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[mid_time],
+                y=[(y0 + y1) / 2],
+                mode="markers",
+                marker=dict(size=10, color=color, opacity=0),
+                hovertemplate=hover_text
+            )
+        )
+        # Uncomment the next line if you want to shift subsequent bars horizontally
+        # day_offset += 0.7
+
+    # Add invisible legend traces (so the legend shows up)
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode="lines",
+        line=dict(color="green", width=6),
+        name="Call OI"
+    ))
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode="lines",
+        line=dict(color="red", width=6),
+        name="Put OI"
+    ))
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode="lines",
+        line=dict(color="orange", width=6),
+        name="Call Volume"
+    ))
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode="lines",
+        line=dict(color="blue", width=6),
+        name="Put Volume"
+    ))
+
+    # Update layout settings
+    fig.update_layout(
+        title=f"{symbol.upper()} - Aggregated OI & Volume (Expirations ≤ {default_expiration})",
         xaxis_title="Date",
         yaxis_title="Price (Strike)",
         xaxis_rangeslider_visible=False,

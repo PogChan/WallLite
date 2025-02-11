@@ -239,8 +239,10 @@ def main():
         "📅 Select an Options Expiration Date:",
         expiration_dates_list + ['Custom Date']
     )
+    
+    defaultTopN = 8
 
-    top_n = expTopCols[1].number_input('🔝How many top strikes to display?', min_value=1, value=5)
+    top_n = expTopCols[1].number_input('🔝How many top strikes to display?', min_value=1, value=defaultTopN)
 
     if selected_expiration == 'Custom Date':
         custom_date = st.date_input('📆 Select a custom date'
@@ -251,7 +253,7 @@ def main():
         st.session_state.runAnalysis = False
 
     if "top_n" not in st.session_state:
-        st.session_state.top_n = 8
+        st.session_state.top_n = defaultTopN
 
     def run_analysis_callback():
         st.session_state.runAnalysis = True

@@ -13,8 +13,11 @@ from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor
 from indicators import *
 import numpy as np
+from FOC import FOC
 
 load_dotenv()
+ref_FOC = FOC()
+
 
 apiUrl = st.secrets["API"]
 baseURL = st.secrets["BASEAPI"]
@@ -27,98 +30,13 @@ user_agents = [
 ]
 
 
-# @st.cache_data(ttl=60*10)
-# def get_options_chain(symbol, expiration):
-#     """
-#     Retrieves options chain data for a single expiration date using yfinance.
-#     Preserves the original structure for compatibility:
-#         {
-#           "options": {
-#             "YYYY-MM-DD": {
-#               "c": { <strike_str>: {...fields...}, ... },
-#               "p": { <strike_str>: {...fields...}, ... }
-#             }
-#           }
-#         }
-
-#     Fields include:
-#       b  -> bid
-#       a  -> ask
-#       oi -> openInterest
-#       v  -> volume
-#       iv -> impliedVolatility
-#       itm -> inTheMoney (boolean)
-#       chg -> change
-#       pctChg -> percentChange
-#       lp  -> lastPrice
-#     """
-
-#     try:
-#         ticker = yf.Ticker(symbol)
-#     except Exception as e:
-#         st.error(f"Error creating yfinance Ticker for {symbol}: {e}")
-#         return None
-
-#     # Check if the expiration date is valid
-#     expiration_dates = ticker.options
-#     if not expiration_dates or expiration not in expiration_dates:
-#         st.error(f"Invalid expiration date for {symbol}. Available dates: {', '.join(expiration_dates)}")
-#         return None
-
-#     # Retrieve the options chain for the specified expiration date
-#     try:
-#         chain = ticker.option_chain(expiration)
-#         calls_df = chain.calls
-#         puts_df = chain.puts
-#     except Exception as e:
-#         st.error(f"Failed to retrieve option chain for {symbol} {expiration}: {e}")
-#         return None
-
-#     # Build the structure for the single expiration date
-#     data = {"options": {expiration: {"c": {}, "p": {}}}}
-
-#     # Build "c" dictionary for calls
-#     c_dict = {}
-#     for _, row in calls_df.iterrows():
-#         strike_str = f"{row['strike']:.2f}"
-#         c_dict[strike_str] = {
-#             "b": float(row['bid']) if not pd.isna(row['bid']) else 0.0,
-#             "a": float(row['ask']) if not pd.isna(row['ask']) else 0.0,
-#             "oi": float(row['openInterest']) if not pd.isna(row['openInterest']) else 0.0,
-#             "v": float(row['volume']) if not pd.isna(row['volume']) else 0.0,
-#             "iv": float(row.get('impliedVolatility', 0.0)) if not pd.isna(row.get('impliedVolatility', 0.0)) else 0.0,
-#             "itm": bool(row.get('inTheMoney', False)),
-#             "chg": float(row.get('change', 0.0)) if not pd.isna(row.get('change', 0.0)) else 0.0,
-#             "pctChg": float(row.get('percentChange', 0.0)) if not pd.isna(row.get('percentChange', 0.0)) else 0.0,
-#             "lp": float(row.get('lastPrice', 0.0)) if not pd.isna(row.get('lastPrice', 0.0)) else 0.0
-#         }
-
-#     # Build "p" dictionary for puts
-#     p_dict = {}
-#     for _, row in puts_df.iterrows():
-#         strike_str = f"{row['strike']:.2f}"
-#         p_dict[strike_str] = {
-#             "b": float(row['bid']) if not pd.isna(row['bid']) else 0.0,
-#             "a": float(row['ask']) if not pd.isna(row['ask']) else 0.0,
-#             "oi": float(row['openInterest']) if not pd.isna(row['openInterest']) else 0.0,
-#             "v": float(row['volume']) if not pd.isna(row['volume']) else 0.0,
-#             "iv": float(row.get('impliedVolatility', 0.0)) if not pd.isna(row.get('impliedVolatility', 0.0)) else 0.0,
-#             "itm": bool(row.get('inTheMoney', False)),
-#             "chg": float(row.get('change', 0.0)) if not pd.isna(row.get('change', 0.0)) else 0.0,
-#             "pctChg": float(row.get('percentChange', 0.0)) if not pd.isna(row.get('percentChange', 0.0)) else 0.0,
-#             "lp": float(row.get('lastPrice', 0.0)) if not pd.isna(row.get('lastPrice', 0.0)) else 0.0
-#         }
-
-#     # Assign dictionaries to the data structure
-#     data["options"][expiration] = {"c": c_dict, "p": p_dict}
-
-#     return data
-
 
 @st.cache_data(ttl=60*10)
 def get_options_chains(symbols, expiration):
     result = {}
-
+    
+    # options_chain = ref_FOC.get_options_chain_greeks("AAPL","2025-02-14","CALL")
+    # st.write(options_chain)
     # Create multi-ticker object once
     all_tickers = yf.Tickers(" ".join(symbols))
 

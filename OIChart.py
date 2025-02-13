@@ -3,6 +3,12 @@ import yfinance as yf
 import plotly.graph_objects as go
 from datetime import timedelta, datetime
 import calendar
+import pytz
+
+eastern = pytz.timezone("US/Eastern")
+now = datetime.now(eastern)
+today_date = now.strftime("%Y-%m-%d")
+
 
 
 def plotChartOI(symbol, data, exp_date, top_n=5):
@@ -305,9 +311,13 @@ def pc_check(symbol, data, top_n=5):
         st.warning("No options data found.")
         return
 
+    
     # Aggregate volume data across all expirations by (option type, strike)
     aggregated = {}  # key: (option_type, strike), value: dict with cumulative volume and breakdown
     for exp_date, exp_data in data["options"].items():
+        if exp_date == today_date and now.hour >= 16:
+            continue
+
         # Process call options for this expiration
         calls = exp_data.get("c", {})
         for strike_str, info in calls.items():

@@ -10,7 +10,7 @@ import pytz
 # ---------------------------------------------------------------------------
 # Helper Function: Fetch Historical Data from Alpha Vantage
 # ---------------------------------------------------------------------------
-def get_alpha_data(symbol, period="1mo"):
+def get_alpha_data(symbol, period="1.5mo"):
     """
     Fetch daily historical stock data from Alpha Vantage and return
     a DataFrame with columns: Open, High, Low, Close, Volume.

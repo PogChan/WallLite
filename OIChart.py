@@ -41,10 +41,31 @@ def get_alpha_data(symbol, period="1mo"):
     for col in ["Open", "High", "Low", "Close", "Volume"]:
         df[col] = pd.to_numeric(df[col])
     
-    # Filter the data to approximately the past month (30 days)
-    if not df.empty:
+    # Filter data based on the provided period (unless period is "max")
+    if period.lower() != "max":
+        # Determine number of days from the period string.
+        period = period.lower().strip()
+        if period.endswith("mo"):
+            try:
+                num = int(period[:-2])
+            except ValueError:
+                num = 1
+            days = num * 30
+        elif period.endswith("yr"):
+            try:
+                num = int(period[:-2])
+            except ValueError:
+                num = 1
+            days = num * 365
+        else:
+            # Assume the period is given as a number of days (as a string)
+            try:
+                days = int(period)
+            except ValueError:
+                days = 30  # default to 30 days if parsing fails
+
         max_date = df.index.max()
-        min_date = max_date - pd.Timedelta(days=30)
+        min_date = max_date - pd.Timedelta(days=days)
         df = df[df.index >= min_date]
         df = df.sort_index()
     return df

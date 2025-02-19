@@ -18,7 +18,7 @@ def get_alpha_data(symbol, period="1mo"):
     """
     alpha_key = st.secrets['ALPHAKEY']
     alphaURL = st.secrets['ALPHAURL']
-    url = f"{alphaURL}?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={alpha_key}"
+    url = f"{alphaURL}?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=compact&apikey={alpha_key}"
     response = requests.get(url)
     if response.status_code != 200:
         st.warning(f"Error fetching data for {symbol} from Alpha Vantage.")

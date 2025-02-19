@@ -10,7 +10,7 @@ import pytz
 # ---------------------------------------------------------------------------
 # Helper Function: Fetch Historical Data from Alpha Vantage
 # ---------------------------------------------------------------------------
-def get_alpha_data(symbol, period="1.5mo"):
+def get_alpha_data(symbol, period="1mo"):
     """
     Fetch daily historical stock data from Alpha Vantage and return
     a DataFrame with columns: Open, High, Low, Close, Volume.
@@ -77,7 +77,7 @@ def get_alpha_data(symbol, period="1.5mo"):
 # ---------------------------------------------------------------------------
 def plotChartOI(symbol, data, exp_date, top_n=5):
     # Download 1 month of data from Alpha Vantage
-    df = get_alpha_data(symbol, period="1mo")
+    df = get_alpha_data(symbol, period="1.5mo")
     if df.empty:
         st.warning(f"No price data for {symbol}.")
         return

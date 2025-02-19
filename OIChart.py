@@ -295,7 +295,7 @@ def pc_check(symbol, data, top_n=5):
     # (Assuming today_date and now are defined elsewhere or can be defined as needed)
     today_date = datetime.now().strftime("%Y-%m-%d")
     now = datetime.now()
-
+    st.title(now)
     for exp_date, exp_data in data["options"].items():
         if exp_date == today_date and now.hour >= 16:
             continue

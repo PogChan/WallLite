@@ -4,6 +4,8 @@ import streamlit as st
 import calendar
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
+import pytz
+
 
 # ---------------------------------------------------------------------------
 # Helper Function: Fetch Historical Data from Alpha Vantage
@@ -293,9 +295,12 @@ def pc_check(symbol, data, top_n=5):
 
     aggregated = {}
     # (Assuming today_date and now are defined elsewhere or can be defined as needed)
-    today_date = datetime.now().strftime("%Y-%m-%d")
-    now = datetime.now()
-    st.title(now)
+    
+
+    eastern = pytz.timezone("US/Eastern")
+    now = datetime.now(eastern)
+    today_date = now.strftime("%Y-%m-%d")
+
     for exp_date, exp_data in data["options"].items():
         if exp_date == today_date and now.hour >= 16:
             continue

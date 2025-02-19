@@ -9,9 +9,79 @@ from scipy.ndimage import gaussian_filter1d
 from sklearn.mixture import GaussianMixture
 import datetime as datetime
 
+
+
+# ---------------------------------------------------------------------------
+# Helper Function: Fetch Historical Data from Alpha Vantage
+# ---------------------------------------------------------------------------
+def get_alpha_data(symbol, period="1mo"):
+    """
+    Fetch daily historical stock data from Alpha Vantage and return
+    a DataFrame with columns: Open, High, Low, Close, Volume.
+    The data is filtered to approximately the past month.
+    """
+    alpha_key = st.secrets['ALPHAKEY']
+    alphaURL = st.secrets['ALPHAURL']
+    url = f"{alphaURL}?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={alpha_key}"
+    response = requests.get(url)
+    if response.status_code != 200:
+        st.warning(f"Error fetching data for {symbol} from Alpha Vantage.")
+        return pd.DataFrame()
+    
+    data = response.json()
+    if "Time Series (Daily)" not in data:
+        st.warning(f"No historical data found for {symbol}.")
+        return pd.DataFrame()
+    
+    ts = data["Time Series (Daily)"]
+    df = pd.DataFrame.from_dict(ts, orient="index")
+    df = df.rename(columns={
+        "1. open": "Open",
+        "2. high": "High",
+        "3. low": "Low",
+        "4. close": "Close",
+        "5. volume": "Volume"
+    })
+    # Convert the index to datetime and sort
+    df.index = pd.to_datetime(df.index)
+    for col in ["Open", "High", "Low", "Close", "Volume"]:
+        df[col] = pd.to_numeric(df[col])
+    
+    # Filter data based on the provided period (unless period is "max")
+    if period.lower() != "max":
+        # Determine number of days from the period string.
+        period = period.lower().strip()
+        if period.endswith("mo"):
+            try:
+                num = int(period[:-2])
+            except ValueError:
+                num = 1
+            days = num * 30
+        elif period.endswith("yr"):
+            try:
+                num = int(period[:-2])
+            except ValueError:
+                num = 1
+            days = num * 365
+        else:
+            # Assume the period is given as a number of days (as a string)
+            try:
+                days = int(period)
+            except ValueError:
+                days = 30  # default to 30 days if parsing fails
+
+        max_date = df.index.max()
+        min_date = max_date - pd.Timedelta(days=days)
+        df = df[df.index >= min_date]
+        df = df.sort_index()
+    return df
+
+
+
 def plotChartOI(symbol, data, exp_date, top_n=5):
     #Download 1 month of data its free
-    df = yf.download(symbol, period="1mo", interval="1d")
+    df = get_alpha_data(symbol, period="1mo")
+  
     if df.empty:
         st.warning(f"No price data for {symbol}.")
         return

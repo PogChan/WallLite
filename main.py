@@ -50,7 +50,7 @@ def get_options_chain(symbol):
 # find stock price currnet
 def get_stock_price(symbol):
     try:
-        price = get_alpha_data(symbol, "1")['Close'][0]
+        price = get_alpha_data(symbol, "1")['Close'].iloc[0]
         return price
     except Exception as e:
         st.error(f"Failed to fetch stock price for {symbol}: {e}")

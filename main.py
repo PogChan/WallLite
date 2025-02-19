@@ -49,9 +49,8 @@ def get_options_chain(symbol):
 
 # find stock price currnet
 def get_stock_price(symbol):
-    ticker = yf.Ticker(symbol)
     try:
-        price = ticker.history(period="1d")['Close'].iloc[-1]
+        price = get_alpha_data(symbol, "1")['Close'][0]
         return price
     except Exception as e:
         st.error(f"Failed to fetch stock price for {symbol}: {e}")

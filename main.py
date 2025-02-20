@@ -4,6 +4,7 @@
 import subprocess
 import sys
 
+@st.cache_resource()
 def install_latest_yfinance():
     """Ensure the latest version of yfinance is installed."""
     subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "yfinance"], check=True)

@@ -1,6 +1,6 @@
 # Copyright (c) 2024 PogChan Github
 # All rights reserved.
-
+import streamlit as st
 import subprocess
 import sys
 
@@ -14,7 +14,6 @@ install_latest_yfinance()
 
 
 import cloudscraper
-import streamlit as st
 import yfinance as yf
 import requests
 import random

@@ -5,6 +5,7 @@ import calendar
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import pytz
+from main import * 
 
 @st.cache_data(ttl=60*60)
 def get_polygon_data(symbol, days=30):
@@ -28,7 +29,7 @@ def get_polygon_data(symbol, days=30):
         "limit": 5000,  # Max limit
         "apiKey": polygon_key
     }
-
+    
     response = requests.get(url, params=params)
 
     if response.status_code != 200:
@@ -36,9 +37,11 @@ def get_polygon_data(symbol, days=30):
         return pd.DataFrame()
 
     data = response.json()
+
     if "results" not in data:
         st.warning(f"No historical data found for {symbol}.")
         return pd.DataFrame()
+
 
     # Convert response to DataFrame
     df = pd.DataFrame(data["results"])
@@ -55,9 +58,24 @@ def get_polygon_data(symbol, days=30):
     # Select only required columns
     df = df[["Open", "High", "Low", "Close", "Volume"]]
 
+    # Fetch the current stock price
+    current_price = get_stock_price(symbol)
+    if current_price:
+        current_date = pd.to_datetime(datetime.today().strftime("%Y-%m-%d"))
+        current_data = pd.DataFrame({
+            "Open": [current_price],
+            "High": [current_price],
+            "Low": [current_price],
+            "Close": [current_price],
+            "Volume": [0]
+        }, index=[current_date])
+        # Append current price data to the historical DataFrame
+        df = pd.concat([current_data, df])
+
     return df
+
 # ---------------------------------------------------------------------------
-# Function: Plot Chart with Options OI/Volume (using Alpha Vantage for stock data)
+# Function: Plot Chart with Options OI/Volume 
 # ---------------------------------------------------------------------------
 def plotChartOI(symbol, data, exp_date, top_n=5):
     # Download 1 month of data from Alpha Vantage

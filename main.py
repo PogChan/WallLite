@@ -1,9 +1,11 @@
 # Copyright (c) 2024 PogChan Github
 # All rights reserved.
+import streamlit as st
 
 import subprocess
 import sys
 
+@st.cache_resource()
 def install_latest_yfinance():
     """Ensure the latest version of yfinance is installed."""
     subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "yfinance"], check=True)
@@ -12,7 +14,6 @@ def install_latest_yfinance():
 install_latest_yfinance()
 
 import cloudscraper
-import streamlit as st
 import yfinance as yf
 import requests
 import random

@@ -7,7 +7,6 @@ import plotly.graph_objects as go
 import pytz
 from main import * 
 
-
 def getHistoricalOHLC(symbol, period ='60d'):
     # Create a Ticker object
     ticker = yf.Ticker(symbol)

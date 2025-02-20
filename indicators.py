@@ -11,84 +11,26 @@ import datetime as datetime
 import requests
 
 
-# ---------------------------------------------------------------------------
-# Helper Function: Fetch Historical Data from Alpha Vantage
-# ---------------------------------------------------------------------------
-def get_alpha_data(symbol, period="1mo"):
-    """
-    Fetch daily historical stock data from Alpha Vantage and return
-    a DataFrame with columns: Open, High, Low, Close, Volume.
-    The data is filtered to approximately the past month.
-    """
-    alpha_key = st.secrets['ALPHAKEY']
-    alphaURL = st.secrets['ALPHAURL']
-    url = f"{alphaURL}?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=compact&apikey={alpha_key}"
-    response = requests.get(url)
-    if response.status_code != 200:
-        st.warning(f"Error fetching data for {symbol} from Alpha Vantage.")
-        return pd.DataFrame()
-    
-    data = response.json()
-    if "Time Series (Daily)" not in data:
-        st.warning(f"No historical data found for {symbol}.")
-        return pd.DataFrame()
-    
-    ts = data["Time Series (Daily)"]
-    df = pd.DataFrame.from_dict(ts, orient="index")
-    df = df.rename(columns={
-        "1. open": "Open",
-        "2. high": "High",
-        "3. low": "Low",
-        "4. close": "Close",
-        "5. volume": "Volume"
-    })
-    # Convert the index to datetime and sort
-    df.index = pd.to_datetime(df.index)
-    for col in ["Open", "High", "Low", "Close", "Volume"]:
-        df[col] = pd.to_numeric(df[col])
-    
-    # Filter data based on the provided period (unless period is "max")
-    if period.lower() != "max":
-        # Determine number of days from the period string.
-        period = period.lower().strip()
-        if period.endswith("mo"):
-            try:
-                num = int(period[:-2])
-            except ValueError:
-                num = 1
-            days = num * 30
-        elif period.endswith("yr"):
-            try:
-                num = int(period[:-2])
-            except ValueError:
-                num = 1
-            days = num * 365
-        else:
-            # Assume the period is given as a number of days (as a string)
-            try:
-                days = int(period)
-            except ValueError:
-                days = 30  # default to 30 days if parsing fails
+def getHistoricalOHLC(symbol, period ='60d'):
+    # Create a Ticker object
+    ticker = yf.Ticker(symbol)
+    # Fetch historical data for the last 60 days
+    df = ticker.history(period=period, interval="1d")
+    # Select only required columns
+    df = df[["Open", "High", "Low", "Close", "Volume"]]
 
-        max_date = df.index.max()
-        min_date = max_date - pd.Timedelta(days=days)
-        df = df[df.index >= min_date]
-        df = df.sort_index()
     return df
 
 
 
 def plotChartOI(symbol, data, exp_date, top_n=5):
     #Download 1 month of data its free
-    df = get_alpha_data(symbol, period="1mo")
+    df = getHistoricalOHLC(symbol)
   
     if df.empty:
         st.warning(f"No price data for {symbol}.")
         return
 
-    # Flatten columns if multi-level from yfinance
-    if hasattr(df.columns, "droplevel") and len(df.columns.levels) > 1:
-        df.columns = df.columns.droplevel(-1)
 
     # chain is verified but we want to just dobule check the exp exists
     if exp_date not in data.get("options", {}):
@@ -445,10 +387,14 @@ def stock_seasonality(ticker, start_date='2013-01-01',
     if data.empty:
         st.warning(f"No price data for {ticker}.")
         return
-
+    
+    # Flatten columns if multi-level from yfinance
+    if hasattr(data.columns, "droplevel") and len(data.columns.levels) > 1:
+        data.columns = data.columns.droplevel(-1)
+        
     # Get as business days and fill in, if we have NaN days in business days jsut forward fill from prev day. 
     data = data.asfreq('B').ffill().dropna()
-    data['daily_return'] = data['Adj Close'].pct_change().dropna()
+    data['daily_return'] = data['Close'].pct_change().dropna()
     
     # Excludes the date
     data['year'] = data.index.year

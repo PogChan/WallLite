@@ -1,5 +1,17 @@
 # Copyright (c) 2024 PogChan Github
 # All rights reserved.
+
+import subprocess
+import sys
+
+def install_latest_yfinance():
+    """Ensure the latest version of yfinance is installed."""
+    subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "yfinance"], check=True)
+
+# Run the update before importing yfinance
+install_latest_yfinance()
+
+
 import cloudscraper
 import streamlit as st
 import yfinance as yf
@@ -88,14 +100,18 @@ def get_options_chains(symbols, expiration):
 
 
 
-# find stock price currnet
+# run options chain
+@st.cache_data(ttl=60*60)
 def get_stock_price(symbol):
     try:
-        price = get_alpha_data(symbol, "1")['Close'].iloc[0]
-        return price
+        ticker = yf.Ticker(symbol)
+        # Fetching the current market price
+        current_price = ticker.info['regularMarketPrice']
+        return current_price
     except Exception as e:
-        st.error(f"Failed to fetch stock price for {symbol}: {e}")
+        st.error(f"Error fetching stock price for {symbol}: {e}")
         return None
+    
 
 
 def get_next_fridays(n=10):

@@ -6,78 +6,62 @@ from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import pytz
 
-
-# ---------------------------------------------------------------------------
-# Helper Function: Fetch Historical Data from Alpha Vantage
-# ---------------------------------------------------------------------------
-def get_alpha_data(symbol, period="1mo"):
+@st.cache_data(ttl=60*60)
+def get_polygon_data(symbol, days=30):
     """
-    Fetch daily historical stock data from Alpha Vantage and return
-    a DataFrame with columns: Open, High, Low, Close, Volume.
-    The data is filtered to approximately the past month.
-    """
-    alpha_key = st.secrets['ALPHAKEY']
-    alphaURL = st.secrets['ALPHAURL']
-    url = f"{alphaURL}?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=compact&apikey={alpha_key}"
-    response = requests.get(url)
-    if response.status_code != 200:
-        st.warning(f"Error fetching data for {symbol} from Alpha Vantage.")
-        return pd.DataFrame()
+    Fetches daily historical stock data from Polygon.io for the past 'days' days.
     
+    :param symbol: Stock ticker (e.g., "AAPL")
+    :param days: Number of days to retrieve data for
+    :return: Pandas DataFrame with Date, Open, High, Low, Close, Volume
+    """
+    polygon_key = st.secrets['POLYGON']
+
+    # Calculate the date range
+    to_date = datetime.today().strftime("%Y-%m-%d")  # Today's date
+    from_date = (datetime.today() - timedelta(days=days)).strftime("%Y-%m-%d")  # 'days' ago
+
+    url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day/{from_date}/{to_date}"
+    params = {
+        "adjusted": "true",
+        "sort": "desc",
+        "limit": 5000,  # Max limit
+        "apiKey": polygon_key
+    }
+
+    response = requests.get(url, params=params)
+
+    if response.status_code != 200:
+        st.warning(f"Error fetching data for {symbol} from Polygon.io.")
+        return pd.DataFrame()
+
     data = response.json()
-    if "Time Series (Daily)" not in data:
+    if "results" not in data:
         st.warning(f"No historical data found for {symbol}.")
         return pd.DataFrame()
-    
-    ts = data["Time Series (Daily)"]
-    df = pd.DataFrame.from_dict(ts, orient="index")
+
+    # Convert response to DataFrame
+    df = pd.DataFrame(data["results"])
+    df["date"] = pd.to_datetime(df["t"], unit="ms")  # Convert Unix timestamp
     df = df.rename(columns={
-        "1. open": "Open",
-        "2. high": "High",
-        "3. low": "Low",
-        "4. close": "Close",
-        "5. volume": "Volume"
+        "o": "Open",
+        "h": "High",
+        "l": "Low",
+        "c": "Close",
+        "v": "Volume"
     })
-    # Convert the index to datetime and sort
-    df.index = pd.to_datetime(df.index)
-    for col in ["Open", "High", "Low", "Close", "Volume"]:
-        df[col] = pd.to_numeric(df[col])
-    
-    # Filter data based on the provided period (unless period is "max")
-    if period.lower() != "max":
-        # Determine number of days from the period string.
-        period = period.lower().strip()
-        if period.endswith("mo"):
-            try:
-                num = int(period[:-2])
-            except ValueError:
-                num = 1
-            days = num * 30
-        elif period.endswith("yr"):
-            try:
-                num = int(period[:-2])
-            except ValueError:
-                num = 1
-            days = num * 365
-        else:
-            # Assume the period is given as a number of days (as a string)
-            try:
-                days = int(period)
-            except ValueError:
-                days = 30  # default to 30 days if parsing fails
+    df.set_index("date", inplace=True)
 
-        max_date = df.index.max()
-        min_date = max_date - pd.Timedelta(days=days)
-        df = df[df.index >= min_date]
-        df = df.sort_index()
+    # Select only required columns
+    df = df[["Open", "High", "Low", "Close", "Volume"]]
+
     return df
-
 # ---------------------------------------------------------------------------
 # Function: Plot Chart with Options OI/Volume (using Alpha Vantage for stock data)
 # ---------------------------------------------------------------------------
 def plotChartOI(symbol, data, exp_date, top_n=5):
     # Download 1 month of data from Alpha Vantage
-    df = get_alpha_data(symbol, period="1.5mo")
+    df = get_polygon_data(symbol, 60)
     if df.empty:
         st.warning(f"No price data for {symbol}.")
         return
@@ -284,7 +268,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 # Function: Options Volume Check (Aggregate across expirations)
 # ---------------------------------------------------------------------------
 def pc_check(symbol, data, top_n=5):
-    df = get_alpha_data(symbol, period="1mo")
+    df = get_polygon_data(symbol, 60)
     if df.empty:
         st.warning(f"No price data for {symbol}.")
         return
@@ -413,7 +397,6 @@ def pc_check(symbol, data, top_n=5):
             name=symbol
         )
     )
-
     min_date = df.index.min()
     max_date = df.index.max()
     total_days = (max_date - min_date).days
@@ -528,7 +511,7 @@ def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
     if default_expiration is None:
         default_expiration = get_next_month_third_friday()
     
-    df = get_alpha_data(symbol, period="1mo")
+    df = get_polygon_data(symbol, 60)
     if df.empty:
         st.warning(f"No price data for {symbol}.")
         return
@@ -658,7 +641,7 @@ def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
             name=symbol
         )
     )
-
+   
     min_date = df.index.min()
     max_date = df.index.max()
     total_days = (max_date - min_date).days

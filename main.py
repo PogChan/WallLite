@@ -12,11 +12,16 @@ import time
 from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor
 from OIChart import *
+from FOC import FOC
+
 
 load_dotenv()
 
 apiUrl = st.secrets["API"]
 baseURL = st.secrets["BASEAPI"]
+
+ref_FOC = FOC()
+
 
 user_agents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
@@ -35,6 +40,7 @@ def get_options_chain(symbol):
     #     'User-Agent': random.choice(user_agents),
     #     "Accept-Language": "en-US,en;q=0.9",
     #     'Referer': apiUrl,
+    # 886pU7R6hV1AO2pYjnrwRcq7NzzpXjtK
     #     "Accept": "application/json, text/plain, */*",
     # }
     # response = requests.get(url, headers=headers)
@@ -50,7 +56,7 @@ def get_options_chain(symbol):
 # find stock price currnet
 def get_stock_price(symbol):
     try:
-        price = get_alpha_data(symbol, "1")['Close'].iloc[0]
+        price = get_polygon_data(symbol, 30).iloc[0]['Close']
         return price
     except Exception as e:
         st.error(f"Failed to fetch stock price for {symbol}: {e}")
@@ -203,7 +209,7 @@ def main():
 
     # selection drop down from ticker grops like industries and sectors
     sector_keys = list(sectors.keys())
-    selected_sector = st.selectbox("📊 Select a Sector:", sector_keys)
+    selected_sector = st.selectbox("📊 Select a Sector:", sector_keys, placeholder='')
 
     # custom text box
     default_tickers = ", ".join(sectors[selected_sector])

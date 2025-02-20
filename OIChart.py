@@ -7,70 +7,14 @@ import plotly.graph_objects as go
 import pytz
 from main import * 
 
-@st.cache_data(ttl=60*60)
-def get_polygon_data(symbol, days=30):
-    """
-    Fetches daily historical stock data from Polygon.io for the past 'days' days.
-    
-    :param symbol: Stock ticker (e.g., "AAPL")
-    :param days: Number of days to retrieve data for
-    :return: Pandas DataFrame with Date, Open, High, Low, Close, Volume
-    """
-    polygon_key = st.secrets['POLYGON']
 
-    # Calculate the date range
-    to_date = datetime.today().strftime("%Y-%m-%d")  # Today's date
-    from_date = (datetime.today() - timedelta(days=days)).strftime("%Y-%m-%d")  # 'days' ago
-
-    url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day/{from_date}/{to_date}"
-    params = {
-        "adjusted": "true",
-        "sort": "desc",
-        "limit": 5000,  # Max limit
-        "apiKey": polygon_key
-    }
-    
-    response = requests.get(url, params=params)
-
-    if response.status_code != 200:
-        st.warning(f"Error fetching data for {symbol} from Polygon.io.")
-        return pd.DataFrame()
-
-    data = response.json()
-
-    if "results" not in data:
-        st.warning(f"No historical data found for {symbol}.")
-        return pd.DataFrame()
-
-
-    # Convert response to DataFrame
-    df = pd.DataFrame(data["results"])
-    df["date"] = pd.to_datetime(df["t"], unit="ms")  # Convert Unix timestamp
-    df = df.rename(columns={
-        "o": "Open",
-        "h": "High",
-        "l": "Low",
-        "c": "Close",
-        "v": "Volume"
-    })
-    df.set_index("date", inplace=True)
-
+def getHistoricalOHLC(symbol, period ='60d'):
+    # Create a Ticker object
+    ticker = yf.Ticker(symbol)
+    # Fetch historical data for the last 60 days
+    df = ticker.history(period=period, interval="1d")
     # Select only required columns
     df = df[["Open", "High", "Low", "Close", "Volume"]]
-
-    # Fetch the current stock price
-    current_price = get_stock_price(symbol)
-    if current_price:
-        current_date = pd.to_datetime(datetime.today().strftime("%Y-%m-%d"))
-        current_data = pd.DataFrame({
-            "Open": [current_price],
-            "High": [current_price],
-            "Low": [current_price],
-            "Close": [current_price],
-            "Volume": [0]
-        }, index=[current_date])
-        # Append current price data to the historical DataFrame
-        df = pd.concat([current_data, df])
 
     return df
 
@@ -79,7 +23,8 @@ def get_polygon_data(symbol, days=30):
 # ---------------------------------------------------------------------------
 def plotChartOI(symbol, data, exp_date, top_n=5):
     # Download 1 month of data from Alpha Vantage
-    df = get_polygon_data(symbol, 60)
+    df = getHistoricalOHLC(symbol)
+
     if df.empty:
         st.warning(f"No price data for {symbol}.")
         return
@@ -286,7 +231,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 # Function: Options Volume Check (Aggregate across expirations)
 # ---------------------------------------------------------------------------
 def pc_check(symbol, data, top_n=5):
-    df = get_polygon_data(symbol, 60)
+    df = getHistoricalOHLC(symbol)
     if df.empty:
         st.warning(f"No price data for {symbol}.")
         return
@@ -529,7 +474,7 @@ def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
     if default_expiration is None:
         default_expiration = get_next_month_third_friday()
     
-    df = get_polygon_data(symbol, 60)
+    df = getHistoricalOHLC(symbol)
     if df.empty:
         st.warning(f"No price data for {symbol}.")
         return

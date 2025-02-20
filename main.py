@@ -1,5 +1,16 @@
 # Copyright (c) 2024 PogChan Github
 # All rights reserved.
+
+import subprocess
+import sys
+
+def install_latest_yfinance():
+    """Ensure the latest version of yfinance is installed."""
+    subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "yfinance"], check=True)
+
+# Run the update before importing yfinance
+install_latest_yfinance()
+
 import cloudscraper
 import streamlit as st
 import yfinance as yf
@@ -53,23 +64,34 @@ def get_options_chain(symbol):
         st.error(f"Failed to fetch options chain for {symbol}. Status code: {response.status_code}")
         return None
 
+# # run options chain
+# @st.cache_data(ttl=60*60)
+# def get_stock_price(symbol):
+#     url = f"{baseURLStocks}?stock={symbol.upper()}&reqId={random.randint(1, 1000000)}"
+
+#     scraper = cloudscraper.create_scraper()
+#     response = scraper.get(url)
+
+#     if response.status_code == 200:
+#         data = response.json()
+        
+#         return data['price']['last'] 
+#     else:
+#         st.error(f"Failed to fetch stock price for {symbol}. Status code: {response.status_code}")
+#         return None
+
 # run options chain
 @st.cache_data(ttl=60*60)
 def get_stock_price(symbol):
-    url = f"{baseURLStocks}?stock={symbol.upper()}&reqId={random.randint(1, 1000000)}"
-
-    scraper = cloudscraper.create_scraper()
-    response = scraper.get(url)
-
-    if response.status_code == 200:
-        data = response.json()
-        
-        return data['price']['last'] 
-    else:
-        st.error(f"Failed to fetch stock price for {symbol}. Status code: {response.status_code}")
+    try:
+        ticker = yf.Ticker(symbol)
+        # Fetching the current market price
+        current_price = ticker.info['regularMarketPrice']
+        return current_price
+    except Exception as e:
+        st.error(f"Error fetching stock price for {symbol}: {e}")
         return None
-
-
+    
 
 def get_next_fridays(n=10):
     """Get the next `num_fridays` Fridays starting from today."""
@@ -232,35 +254,35 @@ def main():
     tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
     expTopCols = st.columns(2)
 
-    # # fridays selection date
-    # expiration_dates_set = set()
+    # fridays selection date
+    expiration_dates_set = set()
 
-    # # Loop through tickers to fetch expiration dates
-    # for symbol in tickers:
-    #     try:
-    #         ticker = yf.Ticker(symbol)
-    #         expiration_dates = ticker.options
-    #         if expiration_dates:
-    #             expiration_dates_set.update(expiration_dates)
-    #     except Exception as e:
-    #         st.warning(f"Unable to fetch expiration dates for {symbol}: {e}")
+    # Loop through tickers to fetch expiration dates
+    for symbol in tickers:
+        try:
+            ticker = yf.Ticker(symbol)
+            expiration_dates = ticker.options
+            if expiration_dates:
+                expiration_dates_set.update(expiration_dates)
+        except Exception as e:
+            st.warning(f"Unable to fetch expiration dates for {symbol}: {e}")
 
-    # # Convert set to sorted list for dropdown
-    # expiration_dates_list = sorted(expiration_dates_set)
+    # Convert set to sorted list for dropdown
+    expiration_dates_list = sorted(expiration_dates_set)
 
-    # # Streamlit dropdown for expiration dates
-    # selected_expiration = expTopCols[0].selectbox(
-    #     "📅 Select an Options Expiration Date:",
-    #     expiration_dates_list + ['Custom Date']
-    # )
+    # Streamlit dropdown for expiration dates
+    selected_expiration = expTopCols[0].selectbox(
+        "📅 Select an Options Expiration Date:",
+        expiration_dates_list + ['Custom Date']
+    )
     
-    # if selected_expiration == 'Custom Date':
-    #     custom_date = st.date_input('📆 Select a custom date'
-    #                                 , datetime.now() + timedelta(days=7))
-    #     selected_expiration = custom_date.strftime('%Y-%m-%d')
-    custom_date = expTopCols[0].date_input('📅 Select an Options Expiration Date:'
+    if selected_expiration == 'Custom Date':
+        custom_date = st.date_input('📆 Select a custom date'
                                     , datetime.now() + timedelta(days=7))
-    selected_expiration = custom_date.strftime('%Y-%m-%d')
+        selected_expiration = custom_date.strftime('%Y-%m-%d')
+    # custom_date = expTopCols[0].date_input('📅 Select an Options Expiration Date:'
+    #                                 , datetime.now() + timedelta(days=7))
+    # selected_expiration = custom_date.strftime('%Y-%m-%d')
 
 
     defaultTopN = 8

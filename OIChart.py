@@ -5,7 +5,7 @@ import calendar
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import pytz
-from main import * 
+from main import *
 
 def getHistoricalOHLC(symbol, period ='60d'):
     # Create a Ticker object
@@ -18,7 +18,7 @@ def getHistoricalOHLC(symbol, period ='60d'):
     return df
 
 # ---------------------------------------------------------------------------
-# Function: Plot Chart with Options OI/Volume 
+# Function: Plot Chart with Options OI/Volume
 # ---------------------------------------------------------------------------
 def plotChartOI(symbol, data, exp_date, top_n=5):
     # Download 1 month of data from Alpha Vantage
@@ -241,7 +241,7 @@ def pc_check(symbol, data, top_n=5):
 
     aggregated = {}
     # (Assuming today_date and now are defined elsewhere or can be defined as needed)
-    
+
 
     eastern = pytz.timezone("US/Eastern")
     now = datetime.now(eastern)
@@ -472,7 +472,7 @@ def get_next_month_third_friday():
 def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
     if default_expiration is None:
         default_expiration = get_next_month_third_friday()
-    
+
     df = getHistoricalOHLC(symbol)
     if df.empty:
         st.warning(f"No price data for {symbol}.")
@@ -485,7 +485,16 @@ def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
         return
 
     aggregated = {}
+
+
+    eastern = pytz.timezone("US/Eastern")
+    now = datetime.now(eastern)
+    today_date = now.strftime("%Y-%m-%d")
+
     for exp_str, exp_data in data.get("options", {}).items():
+        if exp_date == today_date and now.hour >= 12:
+            continue
+
         try:
             exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()
         except Exception:
@@ -533,18 +542,18 @@ def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
             "totalValue": values["totalValue"],
             "breakdown": values["breakdown"]
         })
-    
+
     top_calls_oi     = sorted([d for d in aggregated_list if d["type"] == "call"], key=lambda x: x["oi"], reverse=True)[:top_n]
     top_calls_volume = sorted([d for d in aggregated_list if d["type"] == "call"], key=lambda x: x["volume"], reverse=True)[:top_n]
     top_puts_oi      = sorted([d for d in aggregated_list if d["type"] == "put"],  key=lambda x: x["oi"], reverse=True)[:top_n]
     top_puts_volume  = sorted([d for d in aggregated_list if d["type"] == "put"],  key=lambda x: x["volume"], reverse=True)[:top_n]
-    
+
     def build_hover_breakdown(breakdown):
         lines = []
         for exp, vals in sorted(breakdown.items()):
             lines.append(f"{exp}: OI={vals['oi']}, Vol={vals['volume']}")
         return "<br>".join(lines)
-    
+
     lines = []
     for row in top_calls_oi:
         row_copy = row.copy()
@@ -566,7 +575,7 @@ def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
         row_copy["metric"] = "volume"
         row_copy["hover_breakdown"] = build_hover_breakdown(row["breakdown"])
         lines.append(row_copy)
-    
+
     if not lines:
         st.warning("No aggregated OI/Volume data found.")
         return
@@ -583,7 +592,7 @@ def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
         elif display_choice == "Puts Only" and line["type"] != "put":
             continue
         filtered_lines.append(line)
-    
+
     if not filtered_lines:
         st.warning(f"No {display_choice} data found.")
         return
@@ -603,7 +612,7 @@ def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
             name=symbol
         )
     )
-   
+
     min_date = df.index.min()
     max_date = df.index.max()
     total_days = (max_date - min_date).days

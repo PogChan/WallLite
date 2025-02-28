@@ -230,7 +230,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 # Function: Options Volume Check (Aggregate across expirations)
 # ---------------------------------------------------------------------------
 def pc_check(symbol, data, top_n=5):
-    if symbol = "SPX":
+    if symbol == "SPX":
         symbol ="^SPX"
     df = getHistoricalOHLC(symbol)
     if df.empty:

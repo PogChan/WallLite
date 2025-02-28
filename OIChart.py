@@ -492,12 +492,14 @@ def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
     today_date = now.strftime("%Y-%m-%d")
 
     for exp_str, exp_data in data.get("options", {}).items():
-        if exp_date == today_date and now.hour >= 12:
-            continue
+
 
         try:
             exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()
         except Exception:
+            continue
+        
+        if exp_date == today_date and now.hour >= 12:
             continue
         if exp_date > default_exp_date:
             break

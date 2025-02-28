@@ -303,7 +303,7 @@ def main():
     runButts[0].button("🚀 Run Analysis", on_click=run_analysis_callback)
     
     if runButts[1].button("PC Check"):
-        for symbol in ['SPY', 'QQQ', 'IWM', 'DIA']:
+        for symbol in ['SPY', 'SPX', 'QQQ', 'IWM']:
             data = get_options_chain(symbol)
             if not data:
                 st.write(f"⚠️ No valid options data for {symbol}.")

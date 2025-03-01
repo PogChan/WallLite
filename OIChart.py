@@ -226,6 +226,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 
     st.plotly_chart(fig, use_container_width=True)
 
+
 # ---------------------------------------------------------------------------
 # Function: Options Volume Check (Aggregate across expirations)
 # ---------------------------------------------------------------------------
@@ -253,6 +254,7 @@ def pc_check(symbol, data, top_n=5):
         if exp_date == today_date and now.hour >= 16:
             continue
 
+        st.write(get_next_opex())
         calls = exp_data.get("c", {})
         for strike_str, info in calls.items():
             if not all(k in info for k in ("v", "b", "a")):

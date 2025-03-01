@@ -75,8 +75,8 @@ def get_options_chain(symbol):
 
 #     if response.status_code == 200:
 #         data = response.json()
-        
-#         return data['price']['last'] 
+
+#         return data['price']['last']
 #     else:
 #         st.error(f"Failed to fetch stock price for {symbol}. Status code: {response.status_code}")
 #         return None
@@ -92,20 +92,33 @@ def get_stock_price(symbol):
     except Exception as e:
         st.error(f"Error fetching stock price for {symbol}: {e}")
         return None
-    
 
-def get_next_fridays(n=10):
+
+
+def get_next_fridays(n=10, startDate = datetime.now()):
     """Get the next `num_fridays` Fridays starting from today."""
-    today = datetime.now()
     fridays = []
     # find el next fridiossss
-    days_until_next_friday = (4 - today.weekday() + 7) % 7
-    next_friday = today + timedelta(days=days_until_next_friday)
+    days_until_next_friday = (4 - startDate.weekday() + 7) % 7
+    next_friday = startDate + timedelta(days=days_until_next_friday)
 
     for i in range(n):
         fridays.append(next_friday + timedelta(weeks=i))
 
     return [friday.strftime('%Y-%m-%d') for friday in fridays]
+
+
+def get_next_opex():
+
+    now = datetime.now()
+
+    # Calculate next month's third Friday
+    next_month = now.month + 1 if now.month < 12 else 1
+    year = now.year if now.month < 12 else now.year + 1
+    first_day = datetime(year, next_month, 1)
+
+    third_friday_next_month = get_next_fridays(2, first_day)[-1]
+    return third_friday_next_month
 
 
 def analyze_options_chain(data, exp_date, stock_price):
@@ -276,7 +289,7 @@ def main():
         "📅 Select an Options Expiration Date:",
         expiration_dates_list + ['Custom Date']
     )
-    
+
     if selected_expiration == 'Custom Date':
         custom_date = st.date_input('📆 Select a custom date'
                                     , datetime.now() + timedelta(days=7))
@@ -301,7 +314,7 @@ def main():
 
     runButts = st.columns(2)
     runButts[0].button("🚀 Run Analysis", on_click=run_analysis_callback)
-    
+
     if runButts[1].button("PC Check"):
         for symbol in ['SPY', 'SPX', 'QQQ', 'IWM']:
             data = get_options_chain(symbol)

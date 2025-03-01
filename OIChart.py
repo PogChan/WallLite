@@ -253,7 +253,8 @@ def pc_check(symbol, data, top_n=5):
     for exp_date, exp_data in data["options"].items():
         if exp_date == today_date and now.hour >= 16:
             continue
-        if exp_date > get_next_opex():
+        #if 2025-03-21W > 2025-03-21 then we remove the W and is it equal then we skip it. if its not then we go next.
+        if exp_date > get_next_opex() and exp_data.replace('W', '') > get_next_opex():
             break
 
 

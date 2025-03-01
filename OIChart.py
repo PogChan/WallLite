@@ -253,8 +253,10 @@ def pc_check(symbol, data, top_n=5):
     for exp_date, exp_data in data["options"].items():
         if exp_date == today_date and now.hour >= 16:
             continue
+        if exp_date > get_next_opex():
+            break
 
-        st.write(get_next_opex())
+
         calls = exp_data.get("c", {})
         for strike_str, info in calls.items():
             if not all(k in info for k in ("v", "b", "a")):
@@ -452,30 +454,11 @@ def pc_check(symbol, data, top_n=5):
     st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------------------------------------------------------
-# Helper Function: Get Next Month's Third Friday
-# ---------------------------------------------------------------------------
-def get_next_month_third_friday():
-    today = datetime.now().date()
-    if today.month == 12:
-        year = today.year + 1
-        month = 1
-    else:
-        year = today.year
-        month = today.month + 1
-    cal = calendar.monthcalendar(year, month)
-    fridays = [week[4] for week in cal if week[4] != 0]
-    if len(fridays) >= 3:
-        third_friday = fridays[2]
-        return datetime(year, month, third_friday).strftime("%Y-%m-%d")
-    else:
-        return None
-
-# ---------------------------------------------------------------------------
 # Function: Plot Aggregated OI & Volume Across Expirations (using Alpha Vantage)
 # ---------------------------------------------------------------------------
 def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
     if default_expiration is None:
-        default_expiration = get_next_month_third_friday()
+        default_expiration = get_next_opex()
 
     df = getHistoricalOHLC(symbol)
     if df.empty:

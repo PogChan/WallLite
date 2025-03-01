@@ -109,15 +109,22 @@ def get_next_fridays(n=10, startDate = datetime.now()):
 
 
 def get_next_opex():
-
     now = datetime.now()
 
-    # Calculate next month's third Friday
+    # Get the third Friday of this month
+    first_day_this_month = datetime(now.year, now.month, 1)
+    third_friday_this_month = get_next_fridays(3, first_day_this_month)[-1]
+
+    # If today is before this month's third Friday, return it
+    if now.strftime("%Y-%m-%d") < third_friday_this_month:
+        return third_friday_this_month
+
+    # Otherwise, return next month's third Friday
     next_month = now.month + 1 if now.month < 12 else 1
     year = now.year if now.month < 12 else now.year + 1
-    first_day = datetime(year, next_month, 1)
+    first_day_next_month = datetime(year, next_month, 1)
 
-    third_friday_next_month = get_next_fridays(2, first_day)[-1]
+    third_friday_next_month = get_next_fridays(3, first_day_next_month)[-1]
     return third_friday_next_month
 
 

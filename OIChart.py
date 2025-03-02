@@ -5,7 +5,42 @@ import calendar
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import pytz
+import yfinance as yf
 from main import *
+
+
+def get_next_fridays(n=10, startDate = datetime.now()):
+    """Get the next `num_fridays` Fridays starting from today."""
+    fridays = []
+    # find el next fridiossss
+    days_until_next_friday = (4 - startDate.weekday() + 7) % 7
+    next_friday = startDate + timedelta(days=days_until_next_friday)
+
+    for i in range(n):
+        fridays.append(next_friday + timedelta(weeks=i))
+
+    return [friday.strftime('%Y-%m-%d') for friday in fridays]
+
+
+def get_next_opex():
+    now = datetime.now()
+
+    # Get the third Friday of this month
+    first_day_this_month = datetime(now.year, now.month, 1)
+    third_friday_this_month = get_next_fridays(3, first_day_this_month)[-1]
+
+    # If today is before this month's third Friday, return it
+    if now.strftime("%Y-%m-%d") < third_friday_this_month:
+        return third_friday_this_month
+
+    # Otherwise, return next month's third Friday
+    next_month = now.month + 1 if now.month < 12 else 1
+    year = now.year if now.month < 12 else now.year + 1
+    first_day_next_month = datetime(year, next_month, 1)
+
+    third_friday_next_month = get_next_fridays(3, first_day_next_month)[-1]
+    return third_friday_next_month
+
 
 def getHistoricalOHLC(symbol, period ='60d'):
     # Create a Ticker object

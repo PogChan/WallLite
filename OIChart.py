@@ -43,6 +43,8 @@ def get_next_opex():
 
 
 def getHistoricalOHLC(symbol, period ='60d'):
+    if symbol =='SPX':
+        symbol = '^SPX'
     # Create a Ticker object
     ticker = yf.Ticker(symbol)
     # Fetch historical data for the last 60 days

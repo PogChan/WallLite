@@ -46,8 +46,6 @@ user_agents = [
 # run options chain
 @st.cache_data(ttl=60*60)
 def get_options_chain(symbol):
-    if symbol =='^SPX':
-        symbol = 'SPX'
     url = f"{baseURL}?stock={symbol.upper()}&reqId={random.randint(1, 1000000)}"
     # st.write(url)
     # headers = {
@@ -86,6 +84,8 @@ def get_options_chain(symbol):
 # run options chain
 @st.cache_data(ttl=60*60)
 def get_stock_price(symbol):
+    if symbol == 'SPX':
+        symbol = '^SPX'
     try:
         ticker = yf.Ticker(symbol)
         # Fetching the current market price
@@ -251,6 +251,8 @@ def main():
     # Loop through tickers to fetch expiration dates
     for symbol in tickers:
         try:
+            if symbol == 'SPX':
+                symbol = '^SPX'
             ticker = yf.Ticker(symbol)
             expiration_dates = ticker.options
             if expiration_dates:

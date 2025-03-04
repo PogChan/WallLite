@@ -84,6 +84,8 @@ def get_options_chain(symbol):
 # run options chain
 @st.cache_data(ttl=60*60)
 def get_stock_price(symbol):
+    if symbol == 'SPX':
+        symbol = '^SPX'
     try:
         ticker = yf.Ticker(symbol)
         # Fetching the current market price

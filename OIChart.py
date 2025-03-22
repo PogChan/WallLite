@@ -523,7 +523,7 @@ def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
         except Exception:
             continue
 
-        if exp_date <= today_date or (now.hour >= 15 and exp_date == today_date):
+        if exp_str <= today_date or (now.hour >= 15 and exp_str == today_date):
             continue
         if exp_date > default_exp_date:
             break

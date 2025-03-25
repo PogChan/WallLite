@@ -23,9 +23,8 @@ from tickers import *
 import time
 from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor
-from OIChart import *
+from OIChart import * 
 from FOC import FOC
-
 
 load_dotenv()
 
@@ -41,6 +40,7 @@ user_agents = [
     "Mozilla/5.0 (X11; Ubuntu; Linux x86_64)",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
 ]
+
 
 
 # run options chain
@@ -84,8 +84,8 @@ def get_options_chain(symbol):
 # run options chain
 @st.cache_data(ttl=60*60)
 def get_stock_price(symbol):
-    if symbol == 'SPX':
-        symbol = '^SPX'
+    if symbol in indices:
+        symbol = '^'+symbol
     try:
         ticker = yf.Ticker(symbol)
         # Fetching the current market price
@@ -251,8 +251,8 @@ def main():
     # Loop through tickers to fetch expiration dates
     for symbol in tickers:
         try:
-            if symbol == 'SPX':
-                symbol = '^SPX'
+            if symbol in indices:
+                symbol = '^'+symbol
             ticker = yf.Ticker(symbol)
             expiration_dates = ticker.options
             if expiration_dates:
@@ -366,8 +366,6 @@ def main():
 
                 if top_n != st.session_state.top_n:
                     st.session_state.top_n = top_n
-
-
 
                 # plotChartOI(symbol, data, selected_expiration, top_n=top_n)
                 plotAggregateOI(symbol, data, top_n, selected_expiration)

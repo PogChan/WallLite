@@ -8,6 +8,7 @@ import pytz
 import yfinance as yf
 from main import *
 
+indices = ['SPX', 'NDX']
 
 def get_next_fridays(n=10, startDate = datetime.now()):
     """Get the next `num_fridays` Fridays starting from today."""
@@ -43,8 +44,8 @@ def get_next_opex():
 
 
 def getHistoricalOHLC(symbol, period ='60d'):
-    if symbol == 'SPX':
-        symbol = '^SPX'
+    if symbol in indices:
+        symbol = '^' + symbol
     # Create a Ticker object
     ticker = yf.Ticker(symbol)
     # Fetch historical data for the last 60 days
@@ -515,11 +516,10 @@ def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
     now = datetime.now(eastern)
     today_date = now.strftime("%Y-%m-%d")
 
+
     for exp_str, exp_data in data.get("options", {}).items():
-
-
         try:
-            exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()
+            exp_date = datetime.strptime(exp_str.replace('W', ''), "%Y-%m-%d").date()
         except Exception:
             continue
 

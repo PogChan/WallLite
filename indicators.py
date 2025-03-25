@@ -614,7 +614,7 @@ def fetch_vol_surface(ticker_symbol, num_expirations=5):
                         'type': option_type,
                         'strike': row['strike'],
                         'expiry': expiry,
-                        'iv': row['impliedVolatility']
+                        'iv': round(row['impliedVolatility'] * 100, 2)
                     })
         except Exception as e:
             st.warning(f"Failed to fetch for {expiry}: {e}")

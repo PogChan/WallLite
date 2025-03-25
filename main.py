@@ -84,8 +84,12 @@ def get_options_chain(symbol):
 # run options chain
 @st.cache_data(ttl=60*60)
 def get_stock_price(symbol):
+            
     if symbol in indices:
         symbol = '^'+symbol
+
+    if symbol == 'BRK.B':
+        symbol = 'BRK-B'
     try:
         ticker = yf.Ticker(symbol)
         # Fetching the current market price
@@ -295,7 +299,7 @@ def main():
     runButts[0].button("🚀 Run Analysis", on_click=run_analysis_callback)
 
     if runButts[1].button("PC Check"):
-        for symbol in ['SPY', 'SPX', 'QQQ', 'IWM']:
+        for symbol in ['SPY', 'SPX', 'QQQ', 'NDX', 'IWM']:
             data = get_options_chain(symbol)
             if not data:
                 st.write(f"⚠️ No valid options data for {symbol}.")

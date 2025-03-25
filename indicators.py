@@ -9,7 +9,9 @@ from scipy.ndimage import gaussian_filter1d
 from sklearn.mixture import GaussianMixture
 import datetime as datetime
 import requests
-
+import matplotlib.pyplot as plt
+from matplotlib import cm
+import seaborn as sns
 
 def getHistoricalOHLC(symbol, period ='60d'):
     # Create a Ticker object
@@ -595,3 +597,66 @@ def stock_seasonality(ticker, start_date='2013-01-01',
 
         st.plotly_chart(fig, use_container_width=True, config=config)
         return fig
+
+
+def fetch_vol_surface(ticker_symbol, num_expirations=5):
+    ticker = yf.Ticker(ticker_symbol)
+    expirations = ticker.options[:num_expirations]
+    all_data = []
+
+    for expiry in expirations:
+        try:
+            chain = ticker.option_chain(expiry)
+            for option_type, df in [('call', chain.calls), ('put', chain.puts)]:
+                df = df[['strike', 'impliedVolatility']].dropna()
+                for _, row in df.iterrows():
+                    all_data.append({
+                        'type': option_type,
+                        'strike': row['strike'],
+                        'expiry': expiry,
+                        'iv': row['impliedVolatility']
+                    })
+        except Exception as e:
+            st.warning(f"Failed to fetch for {expiry}: {e}")
+
+    df_all = pd.DataFrame(all_data)
+    df_all['expiry_days'] = df_all['expiry'].apply(
+    lambda x: (datetime.datetime.strptime(x, "%Y-%m-%d") - datetime.datetime.today()).days
+    )
+    return df_all
+
+def plot_vol_surface(df, option_type='call'):
+    df_plot = df[df['type'] == option_type]
+
+    fig = plt.figure(figsize=(10, 6))
+    ax = fig.add_subplot(111, projection='3d')
+
+    x = df_plot['strike']
+    y = df_plot['expiry_days']
+    z = df_plot['iv']
+
+    surf = ax.plot_trisurf(x, y, z, cmap=cm.viridis, linewidth=0.2)
+    ax.set_xlabel('Strike Price')
+    ax.set_ylabel('Days to Expiry')
+    ax.set_zlabel('Implied Volatility')
+    ax.set_title(f'{option_type.capitalize()} Volatility Surface')
+
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+    st.pyplot(fig)
+
+def plot_iv_expiry_heatmap(df, underlying_price, option_type='call'):
+    df_plot = df[df['type'] == option_type].copy()
+    df_plot['strike_diff'] = (df_plot['strike'] - underlying_price).abs()
+
+    # Closest-to-ATM IV for each expiry
+    atm_iv_by_expiry = df_plot.loc[df_plot.groupby('expiry')['strike_diff'].idxmin()]
+    heat_df = atm_iv_by_expiry[['expiry', 'iv']].set_index('expiry')
+    heat_df = heat_df.sort_index()
+
+    # Plotting
+    fig, ax = plt.subplots(figsize=(12, 1.8))
+    sns.heatmap(heat_df.T, annot=True, cmap='coolwarm', cbar_kws={'label': 'Implied Volatility'}, ax=ax)
+    ax.set_title(f"{option_type.capitalize()} ATM IV by Expiry")
+    ax.set_xlabel("Expiration Date")
+    ax.set_ylabel("")
+    return fig

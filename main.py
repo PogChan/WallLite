@@ -399,6 +399,13 @@ def main():
 
                 stock_seasonality(symbol)
 
+                with st.spinner("Fetching data and generating surfaces..."):
+                    df_surface = fetch_vol_surface(symbol.upper(), num_expirations=20)
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.pyplot(plot_iv_expiry_heatmap(df_surface, stock_price, option_type='call'))
+                    with col2:
+                        st.pyplot(plot_iv_expiry_heatmap(df_surface, stock_price, option_type='put'))
 
                 st.markdown("##### Top 5 Call Heatmap Strikes")
                 call_heatmap_data = pd.DataFrame(

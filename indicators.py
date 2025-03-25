@@ -644,20 +644,21 @@ def plot_vol_surface(df, option_type='call'):
     fig.colorbar(surf, shrink=0.5, aspect=5)
     st.pyplot(fig)
 
-def plot_iv_expiry_heatmap(df, underlying_price, option_type='call'):
+def plot_iv_expiry(df, underlying_price, option_type='call'):
     df_plot = df[df['type'] == option_type].copy()
     df_plot['strike_diff'] = (df_plot['strike'] - underlying_price).abs()
 
-    # Closest-to-ATM IV for each expiry
+    # Closest-to-ATM option per expiry
     atm_iv_by_expiry = df_plot.loc[df_plot.groupby('expiry')['strike_diff'].idxmin()]
-    st.write(atm_iv_by_expiry)
-    heat_df = atm_iv_by_expiry[['expiry', 'iv']].set_index('expiry')
-    heat_df = heat_df.sort_index()
+    atm_iv_by_expiry = atm_iv_by_expiry.sort_values('expiry')
 
-    # Plotting
-    fig, ax = plt.subplots(figsize=(12, 1.8))
-    sns.heatmap(heat_df.T, annot=True, cmap='coolwarm', cbar_kws={'label': 'Implied Volatility'}, ax=ax)
-    ax.set_title(f"{option_type.capitalize()} ATM IV by Expiry")
+    # Plot
+    fig, ax = plt.subplots(figsize=(12, 4))
+    ax.plot(atm_iv_by_expiry['expiry'], atm_iv_by_expiry['iv'], marker='o', linewidth=2)
+    ax.set_title(f"{option_type.capitalize()} ATM IV by Expiry", fontsize=14)
     ax.set_xlabel("Expiration Date")
-    ax.set_ylabel("")
+    ax.set_ylabel("Implied Volatility (%)")
+    ax.grid(True)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
     return fig

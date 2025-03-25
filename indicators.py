@@ -650,6 +650,7 @@ def plot_iv_expiry_heatmap(df, underlying_price, option_type='call'):
 
     # Closest-to-ATM IV for each expiry
     atm_iv_by_expiry = df_plot.loc[df_plot.groupby('expiry')['strike_diff'].idxmin()]
+    st.write(atm_iv_by_expiry)
     heat_df = atm_iv_by_expiry[['expiry', 'iv']].set_index('expiry')
     heat_df = heat_df.sort_index()
 

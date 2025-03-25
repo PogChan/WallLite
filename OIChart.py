@@ -288,7 +288,7 @@ def pc_check(symbol, data, top_n=5):
     today_date = now.strftime("%Y-%m-%d")
 
     for exp_date, exp_data in data["options"].items():
-        if exp_date == today_date and now.hour >= 16:
+        if exp_date <= today_date or (now.hour >= 16 and exp_date == today_date):
             continue
         #if 2025-03-21W > 2025-03-21 then we remove the W and is it equal then we skip it. if its not then we go next.
         if exp_date > get_next_opex() and exp_date.replace('W', '') > get_next_opex():
@@ -523,7 +523,7 @@ def plotAggregateOI(symbol, data, top_n=5, default_expiration=None):
         except Exception:
             continue
 
-        if exp_date == today_date and now.hour >= 15:
+        if exp_str <= today_date or (now.hour >= 15 and exp_str == today_date):
             continue
         if exp_date > default_exp_date:
             break

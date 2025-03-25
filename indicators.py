@@ -644,21 +644,26 @@ def plot_vol_surface(df, option_type='call'):
     fig.colorbar(surf, shrink=0.5, aspect=5)
     st.pyplot(fig)
 
-def plot_iv_expiry(df, underlying_price, option_type='call'):
-    df_plot = df[df['type'] == option_type].copy()
-    df_plot['strike_diff'] = (df_plot['strike'] - underlying_price).abs()
-
-    # Closest-to-ATM option per expiry
-    atm_iv_by_expiry = df_plot.loc[df_plot.groupby('expiry')['strike_diff'].idxmin()]
-    atm_iv_by_expiry = atm_iv_by_expiry.sort_values('expiry')
-
-    # Plot
+def plot_iv_expiry(df, underlying_price):
     fig, ax = plt.subplots(figsize=(12, 4))
-    ax.plot(atm_iv_by_expiry['expiry'], atm_iv_by_expiry['iv'], marker='o', linewidth=2)
-    ax.set_title(f"{option_type.capitalize()} ATM IV by Expiry", fontsize=14)
+
+    for option_type, color in [('call', 'green'), ('put', 'red')]:
+        df_plot = df[df['type'] == option_type].copy()
+        df_plot['strike_diff'] = (df_plot['strike'] - underlying_price).abs()
+
+        # Closest-to-ATM option per expiry
+        atm_iv_by_expiry = df_plot.loc[df_plot.groupby('expiry')['strike_diff'].idxmin()]
+        atm_iv_by_expiry = atm_iv_by_expiry.sort_values('expiry')
+
+        ax.plot(atm_iv_by_expiry['expiry'], atm_iv_by_expiry['iv'], marker='o',
+                label=f"{option_type.capitalize()} IV", color=color, linewidth=2)
+
+    ax.set_title("ATM Implied Volatility by Expiry (Calls vs Puts)", fontsize=14)
     ax.set_xlabel("Expiration Date")
     ax.set_ylabel("Implied Volatility (%)")
     ax.grid(True)
+    ax.legend()
     plt.xticks(rotation=45)
     plt.tight_layout()
-    return fig
+
+    st.pyplot(fig)

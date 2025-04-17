@@ -264,11 +264,32 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 
     st.plotly_chart(fig, use_container_width=True)
 
+def is_valid_expiry(exp_date: str, now: datetime, today_date: str, next_opex: datetime.date) -> bool:
+    try:
+        is_weekly = 'W' in exp_date
+        exp_date_clean_str = exp_date.replace('W', '')
+        exp_date_clean = datetime.strptime(exp_date_clean_str, "%Y-%m-%d").date()
+        exp_date_clean = exp_date_clean.strftime("%Y-%m-%d")
+    except Exception as e:
+        return False
 
+    # Comparisons now all using datetime.date objects
+    st.write(exp_date_clean, today_date)
+    if exp_date_clean < today_date or (exp_date_clean == today_date and now.hour >= 16):
+        return False
+
+    if exp_date_clean > next_opex:
+        return False
+
+    if not is_weekly and exp_date_clean > next_opex:
+        return False
+
+    return True
 # ---------------------------------------------------------------------------
 # Function: Options Volume Check (Aggregate across expirations)
 # ---------------------------------------------------------------------------
 def pc_check(symbol, data, top_n=5):
+
 
     df = getHistoricalOHLC(symbol)
     if df.empty:
@@ -286,14 +307,12 @@ def pc_check(symbol, data, top_n=5):
     eastern = pytz.timezone("US/Eastern")
     now = datetime.now(eastern)
     today_date = now.strftime("%Y-%m-%d")
+    next_opex = get_next_opex()
+
 
     for exp_date, exp_data in data["options"].items():
-        if exp_date <= today_date or (now.hour >= 16 and exp_date == today_date):
+        if not is_valid_expiry(exp_date, now, today_date, next_opex):
             continue
-        #if 2025-03-21W > 2025-03-21 then we remove the W and is it equal then we skip it. if its not then we go next.
-        if exp_date > get_next_opex() and exp_date.replace('W', '') > get_next_opex():
-            break
-
 
         calls = exp_data.get("c", {})
         for strike_str, info in calls.items():

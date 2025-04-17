@@ -274,7 +274,6 @@ def is_valid_expiry(exp_date: str, now: datetime, today_date: str, next_opex: da
         return False
 
     # Comparisons now all using datetime.date objects
-    st.write(exp_date_clean, today_date)
     if exp_date_clean < today_date or (exp_date_clean == today_date and now.hour >= 16):
         return False
 
@@ -312,6 +311,7 @@ def pc_check(symbol, data, top_n=5):
 
     for exp_date, exp_data in data["options"].items():
         if not is_valid_expiry(exp_date, now, today_date, next_opex):
+            st.write(exp_date, now, today_date, next_opex)
             continue
 
         calls = exp_data.get("c", {})

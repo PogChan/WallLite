@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 import streamlit as st
 import calendar
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import plotly.graph_objects as go
 import pytz
 import yfinance as yf
@@ -22,26 +22,38 @@ def get_next_fridays(n=10, startDate = datetime.now()):
 
     return [friday.strftime('%Y-%m-%d') for friday in fridays]
 
+def to_date(d):
+    # if it’s already a datetime.date, leave it;
+    # if datetime.datetime, convert to date;
+    # if string “YYYY‑MM‑DD”, parse it
+    if isinstance(d, date):
+        return d
+    if isinstance(d, datetime):
+        return d.date()
+    if isinstance(d, str):
+        return datetime.strptime(d, "%Y-%m-%d").date()
+    raise TypeError(f"Can't convert {type(d)} to date")
 
 def get_next_opex():
-    now = datetime.now()
+    today = date.today()
 
-    # Get the third Friday of this month
-    first_day_this_month = datetime(now.year, now.month, 1)
-    third_friday_this_month = get_next_fridays(3, first_day_this_month)[-1]
+    # this month’s 3rd‑Friday (could be str or datetime)
+    raw_tf = get_next_fridays(3, datetime(today.year, today.month, 1))[-1]
+    tf_this = to_date(raw_tf)
 
-    # If today is before this month's third Friday, return it
-    if now.strftime("%Y-%m-%d") < third_friday_this_month:
-        return third_friday_this_month
+    # days until expiry
+    days_until = (tf_this - today).days
 
-    # Otherwise, return next month's third Friday
-    next_month = now.month + 1 if now.month < 12 else 1
-    year = now.year if now.month < 12 else now.year + 1
-    first_day_next_month = datetime(year, next_month, 1)
+    # if more than 2 days out, use it
+    if days_until > 2:
+        return tf_this
 
-    third_friday_next_month = get_next_fridays(3, first_day_next_month)[-1]
-    return third_friday_next_month
-
+    # otherwise roll to next month
+    next_month = today.month % 12 + 1
+    year = today.year + (today.month // 12)
+    raw_tf_next = get_next_fridays(3, datetime(year, next_month, 1))[-1]
+    tf_next = to_date(raw_tf_next)
+    return tf_next.strftime("%Y-%m-%d")
 
 def getHistoricalOHLC(symbol, period ='60d'):
     if symbol in indices:
@@ -264,7 +276,7 @@ def plotChartOI(symbol, data, exp_date, top_n=5):
 
     st.plotly_chart(fig, use_container_width=True)
 
-def is_valid_expiry(exp_date: str, now: datetime, today_date: str, next_opex: datetime.date) -> bool:
+def is_valid_expiry(exp_date: str, now: datetime, today_date: str, next_opex: str) -> bool:
     try:
         is_weekly = 'W' in exp_date
         exp_date_clean_str = exp_date.replace('W', '')
@@ -311,7 +323,7 @@ def pc_check(symbol, data, top_n=5):
 
     for exp_date, exp_data in data["options"].items():
         if not is_valid_expiry(exp_date, now, today_date, next_opex):
-            st.write(exp_date, now, today_date, next_opex)
+            # st.write(exp_date, now, today_date, next_opex)
             continue
 
         calls = exp_data.get("c", {})

@@ -378,6 +378,18 @@ def pc_check(symbol, data, top_n=5):
 
     calls_agg = [item for item in aggregated_list if item["type"] == "call"]
     puts_agg  = [item for item in aggregated_list if item["type"] == "put"]
+    # compute total values
+    total_calls = sum(item["totalValue"] for item in calls_agg)
+    total_puts  = sum(item["totalValue"] for item in puts_agg)
+
+    # guard against division by zero
+    pc_ratio = total_puts / total_calls if total_calls else None
+
+    # display it
+    if pc_ratio is None:
+        st.warning("No call volume found, cannot compute put/call ratio.")
+    else:
+        st.metric(label="Put/Call Ratio", value=f"{pc_ratio:.2f}")
 
     top_calls_volume = sorted(calls_agg, key=lambda x: x["volume"], reverse=True)[:top_n]
     top_puts_volume  = sorted(puts_agg, key=lambda x: x["volume"], reverse=True)[:top_n]

@@ -44,7 +44,7 @@ def get_options_chain(symbol, expiration):
     """
 
     try:
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol, session=curlSession)
     except Exception as e:
         st.error(f"Error creating yfinance Ticker for {symbol}: {e}")
         return None

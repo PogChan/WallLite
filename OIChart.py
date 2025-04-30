@@ -7,8 +7,10 @@ import plotly.graph_objects as go
 import pytz
 import yfinance as yf
 from main import *
+import curl_cffi import requests as curl_req
 
 indices = ['SPX', 'NDX']
+curlSession = curl_req.Session(impersonate="chrome")
 
 def get_next_fridays(n=10, startDate = datetime.now()):
     """Get the next `num_fridays` Fridays starting from today."""
@@ -59,7 +61,7 @@ def getHistoricalOHLC(symbol, period ='60d'):
     if symbol in indices:
         symbol = '^' + symbol
     # Create a Ticker object
-    ticker = yf.Ticker(symbol)
+    ticker = yf.Ticker(symbol, session=curlSession)
     # Fetch historical data for the last 60 days
     df = ticker.history(period=period, interval="1d")
     # Select only required columns

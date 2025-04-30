@@ -91,7 +91,7 @@ def get_stock_price(symbol):
     if symbol == 'BRK.B':
         symbol = 'BRK-B'
     try:
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol, session=curlSession)
         # Fetching the current market price
         current_price = ticker.info['regularMarketPrice']
         return current_price

@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 import pytz
 import yfinance as yf
 from main import *
-import curl_cffi import requests as curl_req
+from curl_cffi import requests as curl_req
 
 indices = ['SPX', 'NDX']
 curlSession = curl_req.Session(impersonate="chrome")

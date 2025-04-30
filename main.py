@@ -1,7 +1,7 @@
 # Copyright (c) 2024 PogChan Github
 # All rights reserved.
 import streamlit as st
-
+from curl_cffi import requests as curl_req
 import subprocess
 import sys
 
@@ -33,7 +33,7 @@ baseURL = st.secrets["BASEAPI"]
 baseURLStocks = st.secrets["BASEAPISTOCKS"]
 ref_FOC = FOC()
 
-
+curlSession=curl_req.Session(impersonate="chrome")
 user_agents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
@@ -257,7 +257,7 @@ def main():
         try:
             if symbol in indices:
                 symbol = '^'+symbol
-            ticker = yf.Ticker(symbol)
+            ticker = yf.Ticker(symbol, session=curlSession)
             expiration_dates = ticker.options
             if expiration_dates:
                 expiration_dates_set.update(expiration_dates)

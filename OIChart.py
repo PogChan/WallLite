@@ -8,7 +8,9 @@ import pytz
 import yfinance as yf
 from main import *
 from curl_cffi import requests as curl_req
+import yfinance_cookie_patch
 
+yfinance_cookie_patch.patch_yfdata_cookie_basic()
 indices = ['SPX', 'NDX']
 curlSession = curl_req.Session(impersonate="chrome")
 

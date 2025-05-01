@@ -33,6 +33,10 @@ baseURL = st.secrets["BASEAPI"]
 baseURLStocks = st.secrets["BASEAPISTOCKS"]
 ref_FOC = FOC()
 
+import yfinance_cookie_patch
+
+yfinance_cookie_patch.patch_yfdata_cookie_basic()
+
 curlSession=curl_req.Session(impersonate="chrome")
 user_agents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",

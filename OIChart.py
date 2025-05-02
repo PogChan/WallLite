@@ -48,9 +48,10 @@ def get_next_opex():
     # days until expiry
     days_until = (tf_this - today).days
 
+
     # if more than 2 days out, use it
     if days_until > 2:
-        return tf_this
+        return tf_this.strftime("%Y-%m-%d")
 
     # otherwise roll to next month
     next_month = today.month % 12 + 1
